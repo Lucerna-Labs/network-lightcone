@@ -1,3 +1,3 @@
 [workspace]
-members = ["kernel-lightcone", "network-observer"]
+members = ["kernel-lightcone", "network-observer", "network-replay"]
 resolver = "2"

@@ -21,6 +21,9 @@
 - Unknown observations with no exact represented seed must admit nothing.
   Observations sharing represented protocol symbols may enter the matching
   causal neighborhood; record that overlap honestly.
+- Keep replay captures and generated event logs outside authored and compiled
+  worlds. Logs describe observation and admission, never a packet verdict.
+  Do not log payload bytes by default.
 
 ## Evidence and revisions
 

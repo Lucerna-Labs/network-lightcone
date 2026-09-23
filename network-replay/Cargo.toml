@@ -1,0 +1,11 @@
+[package]
+name = "network-lightcone-replay"
+version = "0.1.0"
+edition = "2021"
+description = "Detailed offline packet replay logs for the passive network Lightcone"
+
+[dependencies]
+kernel-lightcone = { path = "../kernel-lightcone" }
+network-lightcone-observer = { path = "../network-observer" }
+serde_json = "1"
+sha2 = "0.10.9"

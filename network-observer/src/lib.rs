@@ -15,6 +15,8 @@ pub enum ObservationKind {
 pub struct Observation {
     pub kind: ObservationKind,
     pub seeds: [u64; NODE_WORDS],
+    /// Stable diagnostic reason for this exact structural observation.
+    pub reason: &'static str,
 }
 
 fn word(bytes: &[u8], offset: usize) -> u16 {
@@ -56,28 +58,37 @@ fn valid_ipv6_transport(ip: &[u8], data: &[u8], protocol: u8) -> bool {
     folded(add_words(sum, data)) == 0xffff
 }
 
-fn malformed() -> Observation {
+fn malformed(reason: &'static str) -> Observation {
     Observation {
         kind: ObservationKind::Malformed,
         seeds: [0; NODE_WORDS],
+        reason,
     }
 }
 
-fn decode_udp(out: &mut Observation, ip: &[u8], data: &[u8], ipv6: bool) -> Result<(), ()> {
+fn decode_udp(
+    out: &mut Observation,
+    ip: &[u8],
+    data: &[u8],
+    ipv6: bool,
+) -> Result<(), &'static str> {
     if data.len() < 8 {
-        return Err(());
+        return Err("udp_short_header");
     }
     let length = word(data, 4) as usize;
     if length < 8 || length != data.len() {
-        return Err(());
+        return Err("udp_length_mismatch");
     }
     let checksum = word(data, 6);
     if ipv6 {
-        if checksum == 0 || !valid_ipv6_transport(ip, data, 17) {
-            return Err(());
+        if checksum == 0 {
+            return Err("udp_ipv6_zero_checksum");
+        }
+        if !valid_ipv6_transport(ip, data, 17) {
+            return Err("udp_ipv6_bad_checksum");
         }
     } else if checksum != 0 && !valid_ipv4_transport(ip, data, 17) {
-        return Err(());
+        return Err("udp_ipv4_bad_checksum");
     }
     set(&mut out.seeds, node::UDP);
     set(&mut out.seeds, node::UDP_LENGTH);
@@ -87,20 +98,31 @@ fn decode_udp(out: &mut Observation, ip: &[u8], data: &[u8], ipv6: bool) -> Resu
     }
     if checksum == 0 {
         set(&mut out.seeds, node::UDP_NO_CHECKSUM);
+        out.reason = "ipv4_udp_no_checksum";
     } else {
         set(&mut out.seeds, node::UDP_CHECKSUM);
         set(&mut out.seeds, node::UDP_INTEGRITY);
+        out.reason = if ipv6 {
+            "ipv6_udp_valid"
+        } else {
+            "ipv4_udp_valid"
+        };
     }
     Ok(())
 }
 
-fn decode_tcp(out: &mut Observation, ip: &[u8], data: &[u8], ipv6: bool) -> Result<(), ()> {
+fn decode_tcp(
+    out: &mut Observation,
+    ip: &[u8],
+    data: &[u8],
+    ipv6: bool,
+) -> Result<(), &'static str> {
     if data.len() < 20 {
-        return Err(());
+        return Err("tcp_short_header");
     }
     let header = (data[12] >> 4) as usize * 4;
     if header < 20 || header > data.len() {
-        return Err(());
+        return Err("tcp_header_length_invalid");
     }
     let valid = if ipv6 {
         valid_ipv6_transport(ip, data, 6)
@@ -108,7 +130,7 @@ fn decode_tcp(out: &mut Observation, ip: &[u8], data: &[u8], ipv6: bool) -> Resu
         valid_ipv4_transport(ip, data, 6)
     };
     if !valid {
-        return Err(());
+        return Err("tcp_bad_checksum");
     }
     set(&mut out.seeds, node::TCP);
     set(&mut out.seeds, node::TCP_PORTS);
@@ -126,12 +148,20 @@ fn decode_tcp(out: &mut Observation, ip: &[u8], data: &[u8], ipv6: bool) -> Resu
             set(&mut out.seeds, symbol);
         }
     }
+    out.reason = if ipv6 {
+        "ipv6_tcp_valid"
+    } else {
+        "ipv4_tcp_valid"
+    };
     Ok(())
 }
 
-fn decode_icmpv4(out: &mut Observation, data: &[u8]) -> Result<(), ()> {
-    if data.len() < 8 || !valid_checksum(data) {
-        return Err(());
+fn decode_icmpv4(out: &mut Observation, data: &[u8]) -> Result<(), &'static str> {
+    if data.len() < 8 {
+        return Err("icmpv4_short_message");
+    }
+    if !valid_checksum(data) {
+        return Err("icmpv4_bad_checksum");
     }
     set(&mut out.seeds, node::ICMP_CHECKSUM);
     match (data[0], data[1]) {
@@ -141,14 +171,21 @@ fn decode_icmpv4(out: &mut Observation, data: &[u8]) -> Result<(), ()> {
         (11, 0..=1) => set(&mut out.seeds, node::ICMP_EXPIRED),
         (12, _) => set(&mut out.seeds, node::ICMP_PARAMETER_PROBLEM),
         (5, _) => set(&mut out.seeds, node::ICMP_REDIRECT),
-        _ => return Ok(()),
+        _ => {
+            out.reason = "icmpv4_unrepresented_type";
+            return Ok(());
+        }
     }
+    out.reason = "icmpv4_valid";
     Ok(())
 }
 
-fn decode_icmpv6(out: &mut Observation, ip: &[u8], data: &[u8]) -> Result<(), ()> {
-    if data.len() < 8 || !valid_ipv6_transport(ip, data, 58) {
-        return Err(());
+fn decode_icmpv6(out: &mut Observation, ip: &[u8], data: &[u8]) -> Result<(), &'static str> {
+    if data.len() < 8 {
+        return Err("icmpv6_short_message");
+    }
+    if !valid_ipv6_transport(ip, data, 58) {
+        return Err("icmpv6_bad_checksum");
     }
     set(&mut out.seeds, node::ICMPV6);
     set(&mut out.seeds, node::ICMPV6_CHECKSUM);
@@ -170,24 +207,32 @@ fn decode_icmpv6(out: &mut Observation, ip: &[u8], data: &[u8]) -> Result<(), ()
             set(&mut out.seeds, node::NDP);
             set(&mut out.seeds, node::NEIGHBOR_ADVERTISEMENT);
         }
-        _ => {}
+        _ => {
+            out.reason = "icmpv6_unrepresented_type";
+            return Ok(());
+        }
     }
+    out.reason = "icmpv6_valid";
     Ok(())
 }
 
-fn decode_ipv4(out: &mut Observation, packet: &[u8]) -> Result<(), ()> {
-    if packet.len() < 20 || packet[0] >> 4 != 4 {
-        return Err(());
+fn decode_ipv4(out: &mut Observation, packet: &[u8]) -> Result<(), &'static str> {
+    if packet.len() < 20 {
+        return Err("ipv4_short_header");
+    }
+    if packet[0] >> 4 != 4 {
+        return Err("ipv4_bad_version");
     }
     let header = (packet[0] & 0x0f) as usize * 4;
     let total = word(packet, 2) as usize;
-    if header < 20
-        || header > packet.len()
-        || total < header
-        || total > packet.len()
-        || !valid_checksum(&packet[..header])
-    {
-        return Err(());
+    if header < 20 || header > packet.len() {
+        return Err("ipv4_header_length_invalid");
+    }
+    if total < header || total > packet.len() {
+        return Err("ipv4_total_length_invalid");
+    }
+    if !valid_checksum(&packet[..header]) {
+        return Err("ipv4_bad_header_checksum");
     }
     set(&mut out.seeds, node::IPV4);
     set(&mut out.seeds, node::IP_HEADER);
@@ -201,6 +246,7 @@ fn decode_ipv4(out: &mut Observation, packet: &[u8]) -> Result<(), ()> {
     if word(packet, 6) & 0x3fff != 0 {
         set(&mut out.seeds, node::IP_FRAGMENT);
         out.kind = ObservationKind::Fragment;
+        out.reason = "ipv4_fragment_requires_reassembly";
         return Ok(());
     }
     let data = &packet[header..total];
@@ -208,17 +254,23 @@ fn decode_ipv4(out: &mut Observation, packet: &[u8]) -> Result<(), ()> {
         17 => decode_udp(out, packet, data, false),
         6 => decode_tcp(out, packet, data, false),
         1 => decode_icmpv4(out, data),
-        _ => Ok(()),
+        _ => {
+            out.reason = "ipv4_header_only_unrepresented_transport";
+            Ok(())
+        }
     }
 }
 
-fn decode_ipv6(out: &mut Observation, packet: &[u8]) -> Result<(), ()> {
-    if packet.len() < 40 || packet[0] >> 4 != 6 {
-        return Err(());
+fn decode_ipv6(out: &mut Observation, packet: &[u8]) -> Result<(), &'static str> {
+    if packet.len() < 40 {
+        return Err("ipv6_short_header");
+    }
+    if packet[0] >> 4 != 6 {
+        return Err("ipv6_bad_version");
     }
     let payload = word(packet, 4) as usize;
     if 40 + payload > packet.len() {
-        return Err(());
+        return Err("ipv6_payload_length_invalid");
     }
     set(&mut out.seeds, node::IPV6);
     set(&mut out.seeds, node::IPV6_PAYLOAD_LENGTH);
@@ -233,22 +285,23 @@ fn decode_ipv6(out: &mut Observation, packet: &[u8]) -> Result<(), ()> {
         match next {
             0 | 43 | 60 => {
                 if offset + 2 > end {
-                    return Err(());
+                    return Err("ipv6_extension_short_header");
                 }
                 set(&mut out.seeds, node::IPV6_EXTENSION);
                 let length = (packet[offset + 1] as usize + 1) * 8;
                 if length < 8 || offset + length > end {
-                    return Err(());
+                    return Err("ipv6_extension_length_invalid");
                 }
                 next = packet[offset];
                 offset += length;
             }
             44 => {
                 if offset + 8 > end {
-                    return Err(());
+                    return Err("ipv6_fragment_short_header");
                 }
                 set(&mut out.seeds, node::IPV6_FRAGMENT);
                 out.kind = ObservationKind::Fragment;
+                out.reason = "ipv6_fragment_requires_reassembly";
                 return Ok(());
             }
             _ => break,
@@ -259,7 +312,10 @@ fn decode_ipv6(out: &mut Observation, packet: &[u8]) -> Result<(), ()> {
         17 => decode_udp(out, packet, data, true),
         6 => decode_tcp(out, packet, data, true),
         58 => decode_icmpv6(out, packet, data),
-        _ => Ok(()),
+        _ => {
+            out.reason = "ipv6_header_only_unrepresented_transport";
+            Ok(())
+        }
     }
 }
 
@@ -268,9 +324,10 @@ pub fn decode(frame: &[u8]) -> Observation {
     let mut out = Observation {
         kind: ObservationKind::Unknown,
         seeds: [0; NODE_WORDS],
+        reason: "unparsed",
     };
     if frame.len() < 14 {
-        return malformed();
+        return malformed("ethernet_short_frame");
     }
     let ether_type = word(frame, 12);
     let packet = &frame[14..];
@@ -282,22 +339,34 @@ pub fn decode(frame: &[u8]) -> Observation {
                 || packet[4] != 6
                 || packet[5] != 4
             {
-                Err(())
+                Err("arp_structure_invalid")
             } else {
                 match word(packet, 6) {
-                    1 => set(&mut out.seeds, node::ARP_REQUEST),
-                    2 => set(&mut out.seeds, node::ARP_REPLY),
-                    _ => return out,
+                    1 => {
+                        set(&mut out.seeds, node::ARP_REQUEST);
+                        out.reason = "arp_request_valid";
+                    }
+                    2 => {
+                        set(&mut out.seeds, node::ARP_REPLY);
+                        out.reason = "arp_reply_valid";
+                    }
+                    _ => {
+                        out.reason = "arp_unrepresented_operation";
+                        return out;
+                    }
                 }
                 Ok(())
             }
         }
         0x0800 => decode_ipv4(&mut out, packet),
         0x86dd => decode_ipv6(&mut out, packet),
-        _ => return out,
+        _ => {
+            out.reason = "ethernet_unrepresented_ethertype";
+            return out;
+        }
     };
-    if result.is_err() {
-        return malformed();
+    if let Err(reason) = result {
+        return malformed(reason);
     }
     if out.kind != ObservationKind::Fragment {
         out.kind = ObservationKind::Decoded;
@@ -374,12 +443,14 @@ mod tests {
             let observation = decode(&[0u8; 14][..length]);
             assert_eq!(observation.kind, ObservationKind::Malformed);
             assert_eq!(observation.seeds, [0; NODE_WORDS]);
+            assert_eq!(observation.reason, "ethernet_short_frame");
         }
         let mut frame = [0u8; 14];
         frame[12..14].copy_from_slice(&0x88b5u16.to_be_bytes());
         let observation = decode(&frame);
         assert_eq!(observation.kind, ObservationKind::Unknown);
         assert_eq!(observation.seeds, [0; NODE_WORDS]);
+        assert_eq!(observation.reason, "ethernet_unrepresented_ethertype");
     }
 
     #[test]
@@ -397,6 +468,7 @@ mod tests {
         let (frame, length) = udp_frame(b"context");
         let observation = decode(&frame[..length]);
         assert_eq!(observation.kind, ObservationKind::Decoded);
+        assert_eq!(observation.reason, "ipv4_udp_no_checksum");
         assert!(bit(&observation.seeds, node::IPV4));
         assert!(bit(&observation.seeds, node::UDP));
         assert!(bit(&observation.seeds, node::UDP_PORTS));
@@ -418,6 +490,7 @@ mod tests {
         let (frame, length) = ipv6_neighbor_solicitation();
         let observation = decode(&frame[..length]);
         assert_eq!(observation.kind, ObservationKind::Decoded);
+        assert_eq!(observation.reason, "icmpv6_valid");
         assert!(bit(&observation.seeds, node::IPV6));
         assert!(bit(&observation.seeds, node::ICMPV6));
         assert!(bit(&observation.seeds, node::NDP));
