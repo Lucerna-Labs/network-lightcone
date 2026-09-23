@@ -1,0 +1,852 @@
+{
+  "schema": 1,
+  "status": "diagnostic_complete",
+  "scope": "synthetic offline raw Ethernet replay through the real observer and passive Rust Lightcone; no live traffic or packet enforcement",
+  "manifest_sha256": "3fc50f2a13296815e60b5442524f14f39f39672ce3047554b761688440b68195",
+  "pcap_sha256": "6eb6db053c6635a7e9571a6de84205340d2fc40a256c8b60eb91a0b530753502",
+  "events_sha256": "e3edc09cc4f862368b5eedf12c63313a0c62e86ed63560c82b52f874efeb6a86",
+  "replay_summary_sha256": "78dd5002f18d2b885dd8c8f2b51396ee01229e6f1bea05b755c76fe64c027da3",
+  "world_pack_sha256": "7afb2e711601cd529640e840e57e8dda48bedccc00ebc16000bba7af74d385cf",
+  "world_source_sha256": "06dd1dbe35847a1e13146a0d8dfc2bc70bc9f27f44b07354ceba83d077fb9ff2",
+  "sealed": false,
+  "case_count": 27,
+  "predeclared_expectations_met": 23,
+  "predeclared_expectations_failed": 4,
+  "categories": {
+    "benign_control": {
+      "total": 5,
+      "context_admitted": 4,
+      "expectation_failed": 2,
+      "expectation_passed": 3,
+      "empty_neighborhood": 1
+    },
+    "semantic_validation": {
+      "total": 2,
+      "context_admitted": 2,
+      "expectation_failed": 2
+    },
+    "shared_causal_overlap": {
+      "total": 8,
+      "context_admitted": 8,
+      "expectation_passed": 8
+    },
+    "structural_rejection": {
+      "total": 12,
+      "empty_neighborhood": 12,
+      "expectation_passed": 12
+    }
+  },
+  "cases": [
+    {
+      "id": "benign-dns-udp",
+      "category": "benign_control",
+      "technique": "Well-formed DNS question in IPv4 UDP",
+      "expected_kind": "decoded",
+      "actual_kind": "decoded",
+      "reason": "ipv4_udp_no_checksum",
+      "expected_admission": "context_admitted",
+      "actual_admission": "context_admitted",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": false,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": false,
+      "direct_seed_ids": [
+        "endpoint_addresses",
+        "ip_checksum",
+        "ip_header",
+        "ip_length",
+        "ip_protocol",
+        "ip_ttl",
+        "ipv4",
+        "udp",
+        "udp_length",
+        "udp_no_checksum",
+        "udp_ports"
+      ],
+      "admitted_node_count": 50,
+      "admitted_edge_count": 55,
+      "policy_named_nodes_in_context": [
+        "export"
+      ],
+      "receipt_sha256": "f852b99a9247e8f1ea47ab5b3eb61afed7e6a28b970f09141e2c46523be46df8",
+      "runtime_admission_us": 345
+    },
+    {
+      "id": "benign-tcp-syn",
+      "category": "benign_control",
+      "technique": "Well-formed TCP SYN header",
+      "expected_kind": "decoded",
+      "actual_kind": "decoded",
+      "reason": "ipv4_tcp_valid",
+      "expected_admission": "context_admitted",
+      "actual_admission": "context_admitted",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [
+        "endpoint_addresses",
+        "ip_checksum",
+        "ip_header",
+        "ip_length",
+        "ip_protocol",
+        "ip_ttl",
+        "ipv4",
+        "tcp",
+        "tcp_checksum",
+        "tcp_ports",
+        "tcp_syn"
+      ],
+      "admitted_node_count": 59,
+      "admitted_edge_count": 64,
+      "policy_named_nodes_in_context": [
+        "export"
+      ],
+      "receipt_sha256": "53f2fc2b20c984754eb96121f1da95e7f15e7d05ba2bf50165bbe1f0648a1412",
+      "runtime_admission_us": 418
+    },
+    {
+      "id": "benign-icmp-echo",
+      "category": "benign_control",
+      "technique": "Well-formed ICMPv4 Echo Request",
+      "expected_kind": "decoded",
+      "actual_kind": "decoded",
+      "reason": "icmpv4_valid",
+      "expected_admission": "context_admitted",
+      "actual_admission": "context_admitted",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [
+        "endpoint_addresses",
+        "icmp_checksum",
+        "icmp_request",
+        "ip_checksum",
+        "ip_header",
+        "ip_length",
+        "ip_protocol",
+        "ip_ttl",
+        "ipv4"
+      ],
+      "admitted_node_count": 49,
+      "admitted_edge_count": 54,
+      "policy_named_nodes_in_context": [
+        "export"
+      ],
+      "receipt_sha256": "373e5c46462346ff9dbc44614e7c8524ee2c651b511a387c8b4a6cc921f1e4f6",
+      "runtime_admission_us": 334
+    },
+    {
+      "id": "benign-ndp-solicitation",
+      "category": "benign_control",
+      "technique": "Well-formed IPv6 Neighbor Solicitation with hop limit 255",
+      "expected_kind": "decoded",
+      "actual_kind": "decoded",
+      "reason": "icmpv6_valid",
+      "expected_admission": "context_admitted",
+      "actual_admission": "context_admitted",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [
+        "icmpv6",
+        "icmpv6_checksum",
+        "ipv6",
+        "ipv6_destination",
+        "ipv6_hop_limit",
+        "ipv6_next_header",
+        "ipv6_payload_length",
+        "ipv6_source",
+        "ndp",
+        "neighbor_solicitation"
+      ],
+      "admitted_node_count": 18,
+      "admitted_edge_count": 14,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "6e5298bde7989045b19459a60542016bc809707fdb2eab0c97e5323fa4c359fc",
+      "runtime_admission_us": 132
+    },
+    {
+      "id": "benign-vlan-ipv4",
+      "category": "benign_control",
+      "technique": "802.1Q tagged version of a valid IPv4 UDP frame",
+      "expected_kind": "decoded",
+      "actual_kind": "unknown",
+      "reason": "ethernet_unrepresented_ethertype",
+      "expected_admission": "context_admitted",
+      "actual_admission": "empty_neighborhood",
+      "checks": {
+        "observer_kind": false,
+        "admission": false,
+        "required_seeds": false,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": false,
+      "direct_seed_ids": [],
+      "admitted_node_count": 0,
+      "admitted_edge_count": 0,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "7d413e9f4a4d7fe9a6fbb54f595e986e552e9716d8b4bc66808a810a45ace3aa",
+      "runtime_admission_us": 15
+    },
+    {
+      "id": "unsupported-ethertype",
+      "category": "structural_rejection",
+      "technique": "Unrepresented Ethernet type",
+      "expected_kind": "unknown",
+      "actual_kind": "unknown",
+      "reason": "ethernet_unrepresented_ethertype",
+      "expected_admission": "empty_neighborhood",
+      "actual_admission": "empty_neighborhood",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [],
+      "admitted_node_count": 0,
+      "admitted_edge_count": 0,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "33dfae973499a58410259473d461665bffb4517b31cc93a3b376bc0d40650fb1",
+      "runtime_admission_us": 14
+    },
+    {
+      "id": "short-ethernet",
+      "category": "structural_rejection",
+      "technique": "Truncated Ethernet header",
+      "expected_kind": "malformed",
+      "actual_kind": "malformed",
+      "reason": "ethernet_short_frame",
+      "expected_admission": "empty_neighborhood",
+      "actual_admission": "empty_neighborhood",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [],
+      "admitted_node_count": 0,
+      "admitted_edge_count": 0,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "c60a0616b104ee23f72107376ae742257df3386c8772c3469488d3424a2a59e0",
+      "runtime_admission_us": 14
+    },
+    {
+      "id": "bad-ipv4-checksum",
+      "category": "structural_rejection",
+      "technique": "IPv4 header checksum corrupted after construction",
+      "expected_kind": "malformed",
+      "actual_kind": "malformed",
+      "reason": "ipv4_bad_header_checksum",
+      "expected_admission": "empty_neighborhood",
+      "actual_admission": "empty_neighborhood",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [],
+      "admitted_node_count": 0,
+      "admitted_edge_count": 0,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "286921242a8ac44d20138ab08da9bcb3711481dd08705d780933423be898598e",
+      "runtime_admission_us": 14
+    },
+    {
+      "id": "bad-ipv4-total-length",
+      "category": "structural_rejection",
+      "technique": "IPv4 total length exceeds captured packet",
+      "expected_kind": "malformed",
+      "actual_kind": "malformed",
+      "reason": "ipv4_total_length_invalid",
+      "expected_admission": "empty_neighborhood",
+      "actual_admission": "empty_neighborhood",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [],
+      "admitted_node_count": 0,
+      "admitted_edge_count": 0,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "03b5ecd455546c092f03a212f21bb1f9ba0954ac1989f5d38d68e3256d64a946",
+      "runtime_admission_us": 14
+    },
+    {
+      "id": "bad-udp-length",
+      "category": "structural_rejection",
+      "technique": "UDP length disagrees with captured transport bytes",
+      "expected_kind": "malformed",
+      "actual_kind": "malformed",
+      "reason": "udp_length_mismatch",
+      "expected_admission": "empty_neighborhood",
+      "actual_admission": "empty_neighborhood",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [],
+      "admitted_node_count": 0,
+      "admitted_edge_count": 0,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "2355b3d60540220e6b692936b2f1edb5ac14db3cb03f0595d23e4c013402d9e0",
+      "runtime_admission_us": 14
+    },
+    {
+      "id": "bad-udp-checksum",
+      "category": "structural_rejection",
+      "technique": "Nonzero incorrect IPv4 UDP checksum",
+      "expected_kind": "malformed",
+      "actual_kind": "malformed",
+      "reason": "udp_ipv4_bad_checksum",
+      "expected_admission": "empty_neighborhood",
+      "actual_admission": "empty_neighborhood",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [],
+      "admitted_node_count": 0,
+      "admitted_edge_count": 0,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "063c43d9f89e3c2aa6234acfa149ff05be7258e0692a1271944d8baeac0dab26",
+      "runtime_admission_us": 14
+    },
+    {
+      "id": "bad-tcp-checksum",
+      "category": "structural_rejection",
+      "technique": "Incorrect TCP pseudo-header checksum",
+      "expected_kind": "malformed",
+      "actual_kind": "malformed",
+      "reason": "tcp_bad_checksum",
+      "expected_admission": "empty_neighborhood",
+      "actual_admission": "empty_neighborhood",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [],
+      "admitted_node_count": 0,
+      "admitted_edge_count": 0,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "443461e83866056b0ec4de4c104b98bf975fbaccef3765df94689a11d97d53b6",
+      "runtime_admission_us": 14
+    },
+    {
+      "id": "bad-icmpv4-checksum",
+      "category": "structural_rejection",
+      "technique": "Incorrect ICMPv4 checksum",
+      "expected_kind": "malformed",
+      "actual_kind": "malformed",
+      "reason": "icmpv4_bad_checksum",
+      "expected_admission": "empty_neighborhood",
+      "actual_admission": "empty_neighborhood",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [],
+      "admitted_node_count": 0,
+      "admitted_edge_count": 0,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "4d6f3c5a3f7c6084efff72f37b638a2fc05fc6b1f171915e4cd55ef0d8b9b99f",
+      "runtime_admission_us": 14
+    },
+    {
+      "id": "arp-unknown-opcode",
+      "category": "structural_rejection",
+      "technique": "ARP envelope with unsupported operation",
+      "expected_kind": "unknown",
+      "actual_kind": "unknown",
+      "reason": "arp_unrepresented_operation",
+      "expected_admission": "empty_neighborhood",
+      "actual_admission": "empty_neighborhood",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [],
+      "admitted_node_count": 0,
+      "admitted_edge_count": 0,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "44beb11ba6394e675464423f7216719f6669415390a3da3702805abeb3d3bb6e",
+      "runtime_admission_us": 14
+    },
+    {
+      "id": "ipv6-short-extension",
+      "category": "structural_rejection",
+      "technique": "IPv6 extension header declares bytes outside the packet",
+      "expected_kind": "malformed",
+      "actual_kind": "malformed",
+      "reason": "ipv6_extension_length_invalid",
+      "expected_admission": "empty_neighborhood",
+      "actual_admission": "empty_neighborhood",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [],
+      "admitted_node_count": 0,
+      "admitted_edge_count": 0,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "9b2fc7cc8d36d7d4ecceb94ca85bb40bb105999407362d7aff1e3077e9df3126",
+      "runtime_admission_us": 14
+    },
+    {
+      "id": "ipv6-udp-zero-checksum",
+      "category": "structural_rejection",
+      "technique": "IPv6 UDP header with zero checksum",
+      "expected_kind": "malformed",
+      "actual_kind": "malformed",
+      "reason": "udp_ipv6_zero_checksum",
+      "expected_admission": "empty_neighborhood",
+      "actual_admission": "empty_neighborhood",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [],
+      "admitted_node_count": 0,
+      "admitted_edge_count": 0,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "12935c34c9dfc0ea8bdde671d20ee442cd2715a1d49d2bea057225b07a4b98ad",
+      "runtime_admission_us": 14
+    },
+    {
+      "id": "icmpv6-bad-checksum",
+      "category": "structural_rejection",
+      "technique": "IPv6 Neighbor Solicitation with bad ICMPv6 checksum",
+      "expected_kind": "malformed",
+      "actual_kind": "malformed",
+      "reason": "icmpv6_bad_checksum",
+      "expected_admission": "empty_neighborhood",
+      "actual_admission": "empty_neighborhood",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [],
+      "admitted_node_count": 0,
+      "admitted_edge_count": 0,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "47678594c0816b224ab34bebb5e350f31b107e44c1ab210ad1a0dc5ba70515c4",
+      "runtime_admission_us": 14
+    },
+    {
+      "id": "ndp-hop-limit-64",
+      "category": "semantic_validation",
+      "technique": "Neighbor Solicitation with valid checksum but invalid hop limit 64",
+      "expected_kind": "malformed",
+      "actual_kind": "decoded",
+      "reason": "icmpv6_valid",
+      "expected_admission": "empty_neighborhood",
+      "actual_admission": "context_admitted",
+      "checks": {
+        "observer_kind": false,
+        "admission": false,
+        "required_seeds": true,
+        "forbidden_seeds": false,
+        "same_seed_set": true
+      },
+      "expectation_passed": false,
+      "direct_seed_ids": [
+        "icmpv6",
+        "icmpv6_checksum",
+        "ipv6",
+        "ipv6_destination",
+        "ipv6_hop_limit",
+        "ipv6_next_header",
+        "ipv6_payload_length",
+        "ipv6_source",
+        "ndp",
+        "neighbor_solicitation"
+      ],
+      "admitted_node_count": 18,
+      "admitted_edge_count": 14,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "8eee696a094af1627142c45483891465e305938bed4397512eaa2aa718de6b02",
+      "runtime_admission_us": 133
+    },
+    {
+      "id": "ipv6-extension-depth",
+      "category": "semantic_validation",
+      "technique": "Eight chained IPv6 destination-option headers with an unresolved next header",
+      "expected_kind": "malformed",
+      "actual_kind": "decoded",
+      "reason": "ipv6_header_only_unrepresented_transport",
+      "expected_admission": "empty_neighborhood",
+      "actual_admission": "context_admitted",
+      "checks": {
+        "observer_kind": false,
+        "admission": false,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": false,
+      "direct_seed_ids": [
+        "ipv6",
+        "ipv6_destination",
+        "ipv6_extension",
+        "ipv6_hop_limit",
+        "ipv6_next_header",
+        "ipv6_payload_length",
+        "ipv6_source"
+      ],
+      "admitted_node_count": 11,
+      "admitted_edge_count": 9,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "419b99b99c7202b17f0e5a2a6262dc3b18301cbb8fc58c11cbacb33665afb522",
+      "runtime_admission_us": 88
+    },
+    {
+      "id": "tcp-syn-port-22",
+      "category": "shared_causal_overlap",
+      "technique": "TCP SYN with a different destination service port",
+      "expected_kind": "decoded",
+      "actual_kind": "decoded",
+      "reason": "ipv4_tcp_valid",
+      "expected_admission": "context_admitted",
+      "actual_admission": "context_admitted",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [
+        "endpoint_addresses",
+        "ip_checksum",
+        "ip_header",
+        "ip_length",
+        "ip_protocol",
+        "ip_ttl",
+        "ipv4",
+        "tcp",
+        "tcp_checksum",
+        "tcp_ports",
+        "tcp_syn"
+      ],
+      "admitted_node_count": 59,
+      "admitted_edge_count": 64,
+      "policy_named_nodes_in_context": [
+        "export"
+      ],
+      "receipt_sha256": "1d6b8a1cf2cc0f24f0efb2f2b59cf3be42634eeebfd81750c7d35062782c2a34",
+      "runtime_admission_us": 398
+    },
+    {
+      "id": "icmp-echo-repeat",
+      "category": "shared_causal_overlap",
+      "technique": "ICMP Echo Request sharing the benign probe shape",
+      "expected_kind": "decoded",
+      "actual_kind": "decoded",
+      "reason": "icmpv4_valid",
+      "expected_admission": "context_admitted",
+      "actual_admission": "context_admitted",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [
+        "endpoint_addresses",
+        "icmp_checksum",
+        "icmp_request",
+        "ip_checksum",
+        "ip_header",
+        "ip_length",
+        "ip_protocol",
+        "ip_ttl",
+        "ipv4"
+      ],
+      "admitted_node_count": 49,
+      "admitted_edge_count": 54,
+      "policy_named_nodes_in_context": [
+        "export"
+      ],
+      "receipt_sha256": "373e5c46462346ff9dbc44614e7c8524ee2c651b511a387c8b4a6cc921f1e4f6",
+      "runtime_admission_us": 337
+    },
+    {
+      "id": "udp-payload-authority-text",
+      "category": "shared_causal_overlap",
+      "technique": "UDP payload text asks for an authority node",
+      "expected_kind": "decoded",
+      "actual_kind": "decoded",
+      "reason": "ipv4_udp_no_checksum",
+      "expected_admission": "context_admitted",
+      "actual_admission": "context_admitted",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [
+        "endpoint_addresses",
+        "ip_checksum",
+        "ip_header",
+        "ip_length",
+        "ip_protocol",
+        "ip_ttl",
+        "ipv4",
+        "udp",
+        "udp_length",
+        "udp_no_checksum",
+        "udp_ports"
+      ],
+      "admitted_node_count": 50,
+      "admitted_edge_count": 55,
+      "policy_named_nodes_in_context": [
+        "export"
+      ],
+      "receipt_sha256": "4bdc05c484ab027a7141d6f7ee1d0d8b7e0012621f3b0a0c084b3ffdecafd76c",
+      "runtime_admission_us": 349
+    },
+    {
+      "id": "arp-claimed-sender",
+      "category": "shared_causal_overlap",
+      "technique": "Structurally valid ARP request with self-claimed sender mapping",
+      "expected_kind": "decoded",
+      "actual_kind": "decoded",
+      "reason": "arp_request_valid",
+      "expected_admission": "context_admitted",
+      "actual_admission": "context_admitted",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [
+        "arp_request"
+      ],
+      "admitted_node_count": 5,
+      "admitted_edge_count": 5,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "6e4656dcf450dd7f73495951a11157a4d9172d5c856edbf0e55452163d9360b9",
+      "runtime_admission_us": 48
+    },
+    {
+      "id": "ipv4-unknown-transport",
+      "category": "shared_causal_overlap",
+      "technique": "Valid IPv4 header with unrepresented transport number 253",
+      "expected_kind": "decoded",
+      "actual_kind": "decoded",
+      "reason": "ipv4_header_only_unrepresented_transport",
+      "expected_admission": "context_admitted",
+      "actual_admission": "context_admitted",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [
+        "endpoint_addresses",
+        "ip_checksum",
+        "ip_header",
+        "ip_length",
+        "ip_protocol",
+        "ip_ttl",
+        "ipv4"
+      ],
+      "admitted_node_count": 49,
+      "admitted_edge_count": 54,
+      "policy_named_nodes_in_context": [
+        "export"
+      ],
+      "receipt_sha256": "75b0eab89cda6990fec419bf8a63609cf71c4d831de992295e223c1a7131f654",
+      "runtime_admission_us": 342
+    },
+    {
+      "id": "icmpv6-unrepresented-type",
+      "category": "shared_causal_overlap",
+      "technique": "Valid ICMPv6 checksum with unrepresented informational type",
+      "expected_kind": "decoded",
+      "actual_kind": "decoded",
+      "reason": "icmpv6_unrepresented_type",
+      "expected_admission": "context_admitted",
+      "actual_admission": "context_admitted",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [
+        "icmpv6",
+        "icmpv6_checksum",
+        "ipv6",
+        "ipv6_destination",
+        "ipv6_hop_limit",
+        "ipv6_next_header",
+        "ipv6_payload_length",
+        "ipv6_source"
+      ],
+      "admitted_node_count": 14,
+      "admitted_edge_count": 11,
+      "policy_named_nodes_in_context": [],
+      "receipt_sha256": "3013638e6fdfed8d74dfdab5faf9fe9b4da94065bed08089a0af4fcb4915b869",
+      "runtime_admission_us": 106
+    },
+    {
+      "id": "ipv4-fragment",
+      "category": "shared_causal_overlap",
+      "technique": "IPv4 more-fragments flag with incomplete transport context",
+      "expected_kind": "fragment",
+      "actual_kind": "fragment",
+      "reason": "ipv4_fragment_requires_reassembly",
+      "expected_admission": "context_admitted",
+      "actual_admission": "context_admitted",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [
+        "endpoint_addresses",
+        "ip_checksum",
+        "ip_fragment",
+        "ip_header",
+        "ip_length",
+        "ip_protocol",
+        "ip_ttl",
+        "ipv4"
+      ],
+      "admitted_node_count": 49,
+      "admitted_edge_count": 54,
+      "policy_named_nodes_in_context": [
+        "export"
+      ],
+      "receipt_sha256": "829261fa7dd45ce7fca63779f2e613dc9ce7c1ac980649d2f1f0ca3bd6422d60",
+      "runtime_admission_us": 332
+    },
+    {
+      "id": "tcp-syn-fin-combination",
+      "category": "shared_causal_overlap",
+      "technique": "TCP flags with SYN and FIN in one structurally valid segment",
+      "expected_kind": "decoded",
+      "actual_kind": "decoded",
+      "reason": "ipv4_tcp_valid",
+      "expected_admission": "context_admitted",
+      "actual_admission": "context_admitted",
+      "checks": {
+        "observer_kind": true,
+        "admission": true,
+        "required_seeds": true,
+        "forbidden_seeds": true,
+        "same_seed_set": true
+      },
+      "expectation_passed": true,
+      "direct_seed_ids": [
+        "endpoint_addresses",
+        "ip_checksum",
+        "ip_header",
+        "ip_length",
+        "ip_protocol",
+        "ip_ttl",
+        "ipv4",
+        "tcp",
+        "tcp_checksum",
+        "tcp_fin",
+        "tcp_ports",
+        "tcp_syn"
+      ],
+      "admitted_node_count": 59,
+      "admitted_edge_count": 64,
+      "policy_named_nodes_in_context": [
+        "export"
+      ],
+      "receipt_sha256": "c84474de9e5d8f85471c8a1bcc6685c5d5a7a0d8a074ba27dc74fecf7481719b",
+      "runtime_admission_us": 397
+    }
+  ],
+  "limitations": [
+    "A nonempty causal receipt is context, not an authorization or network pass.",
+    "The corpus is synthetic and small; it does not estimate production attack reduction.",
+    "No host enforcement or application-level parser participated in this experiment.",
+    "Intent cannot be inferred from a packet when benign and adversarial uses share the same observable structure."
+  ]
+}

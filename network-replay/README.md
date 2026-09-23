@@ -53,3 +53,28 @@ The event status `context_admitted` means a bounded causal neighborhood was
 returned. It is not an authorization or attack classification. Effectiveness
 claims require independently labeled traffic and a separate host enforcement
 evaluation.
+
+## Reproduce the isolated adversarial replay
+
+The adversarial corpus generator creates raw synthetic Ethernet frames and
+freezes expected observations before replay. It never opens a network socket.
+Use new output directory names for each run:
+
+```sh
+python3 network-replay/experiments/adversarial_v1.py \
+  --out artifacts/experiments/adversarial-v1-new
+
+cargo run -p network-lightcone-replay --offline -- \
+  --input artifacts/experiments/adversarial-v1-new/frames.pcap \
+  --out artifacts/logs/adversarial-v1-new
+
+python3 network-replay/experiments/evaluate_adversarial_v1.py \
+  --manifest artifacts/experiments/adversarial-v1-new/manifest.json \
+  --replay artifacts/logs/adversarial-v1-new \
+  --out artifacts/experiments/adversarial-v1-results-new
+```
+
+The evaluator verifies the PCAP, frame and event hashes before comparing
+predeclared expectations with the actual observer and runtime outputs. The
+first run and its failed expectations are retained in
+`network-lightcone/receipts/adversarial-v1-20260923.*`.
