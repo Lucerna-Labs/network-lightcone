@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "purpose": "Synthetic held-out structural challenges. This file is never read by the trainer and is not production effectiveness evidence.",
+  "minimum_zero_admission_fraction": 0.5,
+  "cases": [
+    {"id": "unsupported-ether-type", "seeds": [], "expected": "zero_admission"},
+    {"id": "malformed-ipv4-envelope", "seeds": [], "expected": "zero_admission"},
+    {"id": "malformed-ipv6-extension-chain", "seeds": [], "expected": "zero_admission"},
+    {"id": "unknown-transport-number", "seeds": [], "expected": "zero_admission"},
+    {"id": "unrecognized-application-envelope", "seeds": [], "expected": "zero_admission"},
+    {"id": "truncated-dns-envelope", "seeds": [], "expected": "zero_admission"},
+    {"id": "invalid-tls-record-envelope", "seeds": [], "expected": "zero_admission"},
+    {"id": "unknown-quic-version-envelope", "seeds": [], "expected": "zero_admission"},
+    {"id": "unknown-neighbor-discovery-option", "seeds": [], "expected": "zero_admission"},
+    {"id": "invalid-dhcp-cookie-envelope", "seeds": [], "expected": "zero_admission"},
+    {"id": "opaque-unrepresented-payload", "seeds": [], "expected": "zero_admission"},
+    {"id": "unrepresented-management-envelope", "seeds": [], "expected": "zero_admission"},
+    {"id": "tcp-syn-probe-overlap", "seeds": ["tcp", "tcp_syn"], "expected": "shared_causal_admission"},
+    {"id": "icmp-echo-probe-overlap", "seeds": ["icmp_request"], "expected": "shared_causal_admission"},
+    {"id": "udp-service-probe-overlap", "seeds": ["udp", "udp_ports"], "expected": "shared_causal_admission"},
+    {"id": "dns-query-probe-overlap", "seeds": ["dns", "dns_query"], "expected": "shared_causal_admission"},
+    {"id": "tls-client-hello-probe-overlap", "seeds": ["tls", "tls_client_hello"], "expected": "shared_causal_admission"},
+    {"id": "quic-initial-probe-overlap", "seeds": ["quic", "quic_tls"], "expected": "shared_causal_admission"},
+    {"id": "neighbor-solicitation-probe-overlap", "seeds": ["ndp", "neighbor_solicitation"], "expected": "shared_causal_admission"},
+    {"id": "http-request-probe-overlap", "seeds": ["http", "http_request"], "expected": "shared_causal_admission"}
+  ]
+}

@@ -1,0 +1,3 @@
+[workspace]
+members = ["kernel-lightcone", "network-observer"]
+resolver = "2"

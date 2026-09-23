@@ -1,0 +1,8 @@
+[package]
+name = "network-lightcone-observer"
+version = "0.1.0"
+edition = "2021"
+description = "Structural network observation adapter for the passive network Lightcone"
+
+[dependencies]
+kernel-lightcone = { path = "../kernel-lightcone" }

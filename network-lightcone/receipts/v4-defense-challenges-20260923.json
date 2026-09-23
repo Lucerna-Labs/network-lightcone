@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "scope": "synthetic structural unknown-versus-shared-causal-overlap challenge; not measured production attack reduction",
+  "world_sha256": "06dd1dbe35847a1e13146a0d8dfc2bc70bc9f27f44b07354ceba83d077fb9ff2",
+  "challenge_sha256": "e07763fdb3ccd01cf113438852177627f36aaff1025306af83a73c3dadd7a3ff",
+  "case_count": 20,
+  "zero_admission_count": 12,
+  "shared_causal_admission_count": 8,
+  "zero_admission_fraction": 0.6,
+  "minimum_zero_admission_fraction": 0.5,
+  "results": [
+    {
+      "id": "unsupported-ether-type",
+      "expected": "zero_admission",
+      "observed": "zero_admission",
+      "seed_count": 0,
+      "admitted_count": 0,
+      "passed": true
+    },
+    {
+      "id": "malformed-ipv4-envelope",
+      "expected": "zero_admission",
+      "observed": "zero_admission",
+      "seed_count": 0,
+      "admitted_count": 0,
+      "passed": true
+    },
+    {
+      "id": "malformed-ipv6-extension-chain",
+      "expected": "zero_admission",
+      "observed": "zero_admission",
+      "seed_count": 0,
+      "admitted_count": 0,
+      "passed": true
+    },
+    {
+      "id": "unknown-transport-number",
+      "expected": "zero_admission",
+      "observed": "zero_admission",
+      "seed_count": 0,
+      "admitted_count": 0,
+      "passed": true
+    },
+    {
+      "id": "unrecognized-application-envelope",
+      "expected": "zero_admission",
+      "observed": "zero_admission",
+      "seed_count": 0,
+      "admitted_count": 0,
+      "passed": true
+    },
+    {
+      "id": "truncated-dns-envelope",
+      "expected": "zero_admission",
+      "observed": "zero_admission",
+      "seed_count": 0,
+      "admitted_count": 0,
+      "passed": true
+    },
+    {
+      "id": "invalid-tls-record-envelope",
+      "expected": "zero_admission",
+      "observed": "zero_admission",
+      "seed_count": 0,
+      "admitted_count": 0,
+      "passed": true
+    },
+    {
+      "id": "unknown-quic-version-envelope",
+      "expected": "zero_admission",
+      "observed": "zero_admission",
+      "seed_count": 0,
+      "admitted_count": 0,
+      "passed": true
+    },
+    {
+      "id": "unknown-neighbor-discovery-option",
+      "expected": "zero_admission",
+      "observed": "zero_admission",
+      "seed_count": 0,
+      "admitted_count": 0,
+      "passed": true
+    },
+    {
+      "id": "invalid-dhcp-cookie-envelope",
+      "expected": "zero_admission",
+      "observed": "zero_admission",
+      "seed_count": 0,
+      "admitted_count": 0,
+      "passed": true
+    },
+    {
+      "id": "opaque-unrepresented-payload",
+      "expected": "zero_admission",
+      "observed": "zero_admission",
+      "seed_count": 0,
+      "admitted_count": 0,
+      "passed": true
+    },
+    {
+      "id": "unrepresented-management-envelope",
+      "expected": "zero_admission",
+      "observed": "zero_admission",
+      "seed_count": 0,
+      "admitted_count": 0,
+      "passed": true
+    },
+    {
+      "id": "tcp-syn-probe-overlap",
+      "expected": "shared_causal_admission",
+      "observed": "shared_causal_admission",
+      "seed_count": 2,
+      "admitted_count": 47,
+      "passed": true
+    },
+    {
+      "id": "icmp-echo-probe-overlap",
+      "expected": "shared_causal_admission",
+      "observed": "shared_causal_admission",
+      "seed_count": 1,
+      "admitted_count": 32,
+      "passed": true
+    },
+    {
+      "id": "udp-service-probe-overlap",
+      "expected": "shared_causal_admission",
+      "observed": "shared_causal_admission",
+      "seed_count": 2,
+      "admitted_count": 37,
+      "passed": true
+    },
+    {
+      "id": "dns-query-probe-overlap",
+      "expected": "shared_causal_admission",
+      "observed": "shared_causal_admission",
+      "seed_count": 2,
+      "admitted_count": 10,
+      "passed": true
+    },
+    {
+      "id": "tls-client-hello-probe-overlap",
+      "expected": "shared_causal_admission",
+      "observed": "shared_causal_admission",
+      "seed_count": 2,
+      "admitted_count": 26,
+      "passed": true
+    },
+    {
+      "id": "quic-initial-probe-overlap",
+      "expected": "shared_causal_admission",
+      "observed": "shared_causal_admission",
+      "seed_count": 2,
+      "admitted_count": 8,
+      "passed": true
+    },
+    {
+      "id": "neighbor-solicitation-probe-overlap",
+      "expected": "shared_causal_admission",
+      "observed": "shared_causal_admission",
+      "seed_count": 2,
+      "admitted_count": 7,
+      "passed": true
+    },
+    {
+      "id": "http-request-probe-overlap",
+      "expected": "shared_causal_admission",
+      "observed": "shared_causal_admission",
+      "seed_count": 2,
+      "admitted_count": 9,
+      "passed": true
+    }
+  ],
+  "training_input_exclusion": {
+    "trainer_accepts_only_world_path": true,
+    "challenge_file_is_not_referenced_by_world": true
+  },
+  "report_sha256": "918a930768cc35f5d68c8972d563d9e905309f1811d14ab2efb30f46501d07f8"
+}
