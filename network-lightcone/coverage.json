@@ -35,6 +35,7 @@
     "Full IPv6 extension-header semantic and unsupported-header handling",
     "Trusted TCP sequence observation across packets; current wire observer is packet-local",
     "Capture-side checksum-offload metadata handling before wire checksum validation",
+    "Trusted application and host-context observation for payload semantics; generic TCP payload admission does not distinguish unauthorized access or data transfer",
     "Independent long-duration production traffic evaluation",
     "Measured effectiveness against a representative external challenge set"
   ],
