@@ -187,6 +187,26 @@ fn decode_icmpv6(out: &mut Observation, ip: &[u8], data: &[u8]) -> Result<(), &'
     if !valid_ipv6_transport(ip, data, 58) {
         return Err("icmpv6_bad_checksum");
     }
+    // Neighbor Discovery has stricter wire validity than generic ICMPv6.
+    // Validate it before any IPv6 or NDP seed can reach the Lightcone.
+    if (133..=136).contains(&data[0]) {
+        if ip[7] != 255 {
+            return Err("ndp_hop_limit_invalid");
+        }
+        if data[1] != 0 {
+            return Err("ndp_code_invalid");
+        }
+        let minimum_length = if data[0] == 133 {
+            8
+        } else if data[0] == 134 {
+            16
+        } else {
+            24
+        };
+        if data.len() < minimum_length {
+            return Err("ndp_short_message");
+        }
+    }
     set(&mut out.seeds, node::ICMPV6);
     set(&mut out.seeds, node::ICMPV6_CHECKSUM);
     match data[0] {
@@ -281,9 +301,14 @@ fn decode_ipv6(out: &mut Observation, packet: &[u8]) -> Result<(), &'static str>
     let mut next = packet[6];
     let mut offset = 40usize;
     let end = 40 + payload;
-    for _ in 0..8 {
+    // Each recognized extension consumes at least eight bytes, so the
+    // declared payload bounds this walk without an arbitrary header count.
+    loop {
         match next {
             0 | 43 | 60 => {
+                if next == 0 && offset != 40 {
+                    return Err("ipv6_hop_by_hop_not_first");
+                }
                 if offset + 2 > end {
                     return Err("ipv6_extension_short_header");
                 }
@@ -396,6 +421,15 @@ mod tests {
         bytes[offset..offset + 2].copy_from_slice(&value.to_be_bytes());
     }
 
+    fn finish_icmpv6_checksum(packet: &mut [u8]) {
+        let length = word(packet, 4) as usize;
+        packet[42..44].fill(0);
+        let mut sum = add_words(0, &packet[8..40]);
+        sum += length as u32 + 58;
+        let checksum = !folded(add_words(sum, &packet[40..40 + length]));
+        packet[42..44].copy_from_slice(&checksum.to_be_bytes());
+    }
+
     fn udp_frame(payload: &[u8]) -> ([u8; 256], usize) {
         let mut frame = [0u8; 256];
         let length = 14 + 20 + 8 + payload.len();
@@ -430,10 +464,7 @@ mod tests {
         packet[40] = 135;
         packet[41] = 0;
         packet[48..64].copy_from_slice(&[0x20, 1, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]);
-        let mut sum = add_words(0, &packet[8..40]);
-        sum += 24 + 58;
-        let checksum = !folded(add_words(sum, &packet[40..64]));
-        packet[42..44].copy_from_slice(&checksum.to_be_bytes());
+        finish_icmpv6_checksum(packet);
         (frame, length)
     }
 
@@ -496,5 +527,91 @@ mod tests {
         assert!(bit(&observation.seeds, node::NDP));
         assert!(bit(&observation.seeds, node::NEIGHBOR_SOLICITATION));
         assert!(!bit(&observation.seeds, node::AUTHORIZED_FLOW));
+    }
+
+    #[test]
+    fn neighbor_discovery_requires_hop_limit_255() {
+        let (mut frame, length) = ipv6_neighbor_solicitation();
+        frame[14 + 7] = 64;
+        let observation = decode(&frame[..length]);
+        assert_eq!(observation.kind, ObservationKind::Malformed);
+        assert_eq!(observation.reason, "ndp_hop_limit_invalid");
+        assert_eq!(observation.seeds, [0; NODE_WORDS]);
+    }
+
+    #[test]
+    fn neighbor_discovery_requires_code_zero_and_complete_message() {
+        let (mut frame, length) = ipv6_neighbor_solicitation();
+        let packet = &mut frame[14..length];
+        packet[41] = 1;
+        finish_icmpv6_checksum(packet);
+        let observation = decode(&frame[..length]);
+        assert_eq!(observation.kind, ObservationKind::Malformed);
+        assert_eq!(observation.reason, "ndp_code_invalid");
+        assert_eq!(observation.seeds, [0; NODE_WORDS]);
+
+        let (mut frame, _) = ipv6_neighbor_solicitation();
+        let packet = &mut frame[14..14 + 40 + 8];
+        packet[4..6].copy_from_slice(&8u16.to_be_bytes());
+        finish_icmpv6_checksum(packet);
+        let observation = decode(&frame[..14 + 40 + 8]);
+        assert_eq!(observation.kind, ObservationKind::Malformed);
+        assert_eq!(observation.reason, "ndp_short_message");
+        assert_eq!(observation.seeds, [0; NODE_WORDS]);
+    }
+
+    #[test]
+    fn unresolved_ipv6_extension_chain_has_no_context() {
+        let mut frame = [0u8; 14 + 40 + 64];
+        frame[12..14].copy_from_slice(&0x86ddu16.to_be_bytes());
+        let packet = &mut frame[14..];
+        packet[0] = 0x60;
+        packet[4..6].copy_from_slice(&64u16.to_be_bytes());
+        packet[6] = 60;
+        for extension in packet[40..].chunks_exact_mut(8) {
+            extension[0] = 60;
+        }
+        let observation = decode(&frame);
+        assert_eq!(observation.kind, ObservationKind::Malformed);
+        assert_eq!(observation.reason, "ipv6_extension_short_header");
+        assert_eq!(observation.seeds, [0; NODE_WORDS]);
+    }
+
+    #[test]
+    fn complete_ipv6_extension_chain_can_exceed_eight_headers() {
+        let mut frame = [0u8; 14 + 40 + 72];
+        frame[12..14].copy_from_slice(&0x86ddu16.to_be_bytes());
+        let packet = &mut frame[14..];
+        packet[0] = 0x60;
+        packet[4..6].copy_from_slice(&72u16.to_be_bytes());
+        packet[6] = 60;
+        for extension in packet[40..].chunks_exact_mut(8) {
+            extension[0] = 60;
+        }
+        packet[40 + 64] = 59;
+        let observation = decode(&frame);
+        assert_eq!(observation.kind, ObservationKind::Decoded);
+        assert_eq!(
+            observation.reason,
+            "ipv6_header_only_unrepresented_transport"
+        );
+        assert!(bit(&observation.seeds, node::IPV6));
+        assert!(bit(&observation.seeds, node::IPV6_EXTENSION));
+    }
+
+    #[test]
+    fn hop_by_hop_extension_must_be_first() {
+        let mut frame = [0u8; 14 + 40 + 16];
+        frame[12..14].copy_from_slice(&0x86ddu16.to_be_bytes());
+        let packet = &mut frame[14..];
+        packet[0] = 0x60;
+        packet[4..6].copy_from_slice(&16u16.to_be_bytes());
+        packet[6] = 60;
+        packet[40] = 0;
+        packet[48] = 59;
+        let observation = decode(&frame);
+        assert_eq!(observation.kind, ObservationKind::Malformed);
+        assert_eq!(observation.reason, "ipv6_hop_by_hop_not_first");
+        assert_eq!(observation.seeds, [0; NODE_WORDS]);
     }
 }
