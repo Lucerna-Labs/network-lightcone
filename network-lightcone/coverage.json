@@ -33,6 +33,8 @@
     "Bounded DNS observation and 802.1Q tagged-frame support",
     "Full IPv6 Neighbor Discovery coverage, including Redirect and option-content semantics",
     "Full IPv6 extension-header semantic and unsupported-header handling",
+    "Trusted TCP sequence observation across packets; current wire observer is packet-local",
+    "Capture-side checksum-offload metadata handling before wire checksum validation",
     "Independent long-duration production traffic evaluation",
     "Measured effectiveness against a representative external challenge set"
   ],
