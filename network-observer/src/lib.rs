@@ -180,6 +180,34 @@ fn decode_icmpv4(out: &mut Observation, data: &[u8]) -> Result<(), &'static str>
     Ok(())
 }
 
+fn ndp_has_source_link_option(data: &[u8], mut offset: usize) -> Result<bool, &'static str> {
+    let mut found = false;
+    while offset < data.len() {
+        if offset + 2 > data.len() {
+            return Err("ndp_option_length_invalid");
+        }
+        let length = data[offset + 1] as usize * 8;
+        if length == 0 || offset + length > data.len() {
+            return Err("ndp_option_length_invalid");
+        }
+        found |= data[offset] == 1;
+        offset += length;
+    }
+    Ok(found)
+}
+
+fn unspecified_ipv6(address: &[u8]) -> bool {
+    address.iter().all(|&byte| byte == 0)
+}
+
+fn solicited_node_multicast(address: &[u8]) -> bool {
+    address[..13] == [0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0xff]
+}
+
+fn link_local_ipv6(address: &[u8]) -> bool {
+    address[0] == 0xfe && address[1] & 0xc0 == 0x80
+}
+
 fn decode_icmpv6(out: &mut Observation, ip: &[u8], data: &[u8]) -> Result<(), &'static str> {
     if data.len() < 8 {
         return Err("icmpv6_short_message");
@@ -205,6 +233,39 @@ fn decode_icmpv6(out: &mut Observation, ip: &[u8], data: &[u8]) -> Result<(), &'
         };
         if data.len() < minimum_length {
             return Err("ndp_short_message");
+        }
+        let source = &ip[8..24];
+        let destination = &ip[24..40];
+        let source_link_option = ndp_has_source_link_option(data, minimum_length)?;
+        match data[0] {
+            133 if unspecified_ipv6(source) && source_link_option => {
+                return Err("ndp_unspecified_source_link_option");
+            }
+            134 if !link_local_ipv6(source) => {
+                return Err("ndp_router_source_not_link_local");
+            }
+            135 => {
+                if data[8] == 0xff {
+                    return Err("ndp_multicast_target");
+                }
+                if unspecified_ipv6(source) {
+                    if !solicited_node_multicast(destination) {
+                        return Err("ndp_unspecified_source_destination_invalid");
+                    }
+                    if source_link_option {
+                        return Err("ndp_unspecified_source_link_option");
+                    }
+                }
+            }
+            136 => {
+                if data[8] == 0xff {
+                    return Err("ndp_multicast_target");
+                }
+                if destination[0] == 0xff && data[4] & 0x40 != 0 {
+                    return Err("ndp_solicited_multicast_advertisement");
+                }
+            }
+            _ => {}
         }
     }
     set(&mut out.seeds, node::ICMPV6);
@@ -613,5 +674,40 @@ mod tests {
         assert_eq!(observation.kind, ObservationKind::Malformed);
         assert_eq!(observation.reason, "ipv6_hop_by_hop_not_first");
         assert_eq!(observation.seeds, [0; NODE_WORDS]);
+    }
+
+    #[test]
+    fn deterministic_wire_stress_keeps_unrecognized_inputs_empty() {
+        let mut state = 0x6a09_e667_f3bc_c909u64;
+        let mut frame = [0u8; 300];
+        for trial in 0..20_000usize {
+            let length = 14 + trial % (frame.len() - 13);
+            for byte in &mut frame[..length] {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                *byte = state as u8;
+            }
+            frame[12..14].copy_from_slice(
+                &match trial % 3 {
+                    0 => 0x86ddu16,
+                    1 => 0x0800u16,
+                    _ => 0x0806u16,
+                }
+                .to_be_bytes(),
+            );
+            if trial % 3 == 0 && length >= 54 {
+                frame[14] = 0x60;
+                frame[18..20].copy_from_slice(&((length - 54) as u16).to_be_bytes());
+                frame[20] = [0, 43, 44, 60, 58, 17, 6, 59][trial % 8];
+            }
+            let observation = decode(&frame[..length]);
+            if matches!(
+                observation.kind,
+                ObservationKind::Malformed | ObservationKind::Unknown
+            ) {
+                assert_eq!(observation.seeds, [0; NODE_WORDS], "trial {trial}");
+            }
+        }
     }
 }

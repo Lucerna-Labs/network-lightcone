@@ -30,7 +30,8 @@
     "Full routing-protocol family coverage",
     "Environment-specific asset and service inventories",
     "Validated host observation adapters for the remaining application and routing protocols",
-    "Full IPv6 Neighbor Discovery semantic validation, including address and option constraints",
+    "Bounded DNS observation and 802.1Q tagged-frame support",
+    "Full IPv6 Neighbor Discovery coverage, including Redirect and option-content semantics",
     "Full IPv6 extension-header semantic and unsupported-header handling",
     "Independent long-duration production traffic evaluation",
     "Measured effectiveness against a representative external challenge set"
