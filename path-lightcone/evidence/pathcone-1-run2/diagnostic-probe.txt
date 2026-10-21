@@ -1,0 +1,2 @@
+   [diag] probe path [(0, 0), (1, 2048), (2, 17), (3, 172818433), (4, 174260225), (5, 60675), (6, 45999)]
+   [diag] matched exactly (true) or by wildcard (false): Some([true, true, true, false, true, false, true])

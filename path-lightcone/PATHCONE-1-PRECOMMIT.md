@@ -134,3 +134,74 @@ P6's deny world inherits both problems.
 - P7 ≥ 1 M/s.
 - **P8, recurrence folding repairs over-folding:** no destination-port, address or TCP-flag
   wildcards remain, except where a position's values really are one-burst.
+
+## Run 2: results (2026-10-21, `evidence/pathcone-1-run2/`)
+
+| role | held-out pass | exact port | exact address | protocol swap | direction flip | wildcards per field |
+|---|---|---|---|---|---|---|
+| hub | 0.9522 | 0.957 | 1.000 | 1.000 | (n/a: hub) | src 1, dst 1, sport 12, dport 13, **tcpf 8** |
+| source | 0.9443 | **1.000** | **1.000** | **1.000** | **1.000** | src 1, sport 6, dport 6, **tcpf 4** |
+| receiver | 0.9463 | **1.000** | **1.000** | **1.000** | **1.000** | src 1, sport 6, dport 6, **tcpf 4** |
+
+Also:
+- **The deny world wrongly drops 0 legitimate packets.** It catches 122–244 of the held-out
+  class (a) on its own.
+- Speed: **6.7 million per second**.
+
+| # | Result |
+|---|---|
+| P1 | FAILED (0.94–0.95) |
+| P2 | **FAILED, and invalid** (below) |
+| P3 | FAILED at the hub only (0.957 exact port) |
+| P4 | MEASURED |
+| P5 | MEASURED |
+| P6 | MEASURED |
+| P7 | MEASURED |
+| P8 | FAILED (TCP-flag wildcards remain) |
+
+**4 of 8 hold.**
+
+### Diagnoses (after the run)
+
+- **P2 was an invalid negative** (`diagnostic-probe.txt`). The probe (10.77.0.1:60675 →
+  10.99.0.1:45999) matched with destination port **45999 exact**. In the io-20261001 experiment UDP
+  45999 is a *legitimate trained service* at the receiver, so phase 1's "undeclared" label does not
+  transfer. It got through only because its source-address position had folded. My precommit
+  error.
+- **The TCP flags still fold because folding ran at every depth at once.** Under each individual
+  flow's branch, its flags (SYN, ACK, FIN) are all within one flow, so they look one-burst there.
+  **The fix is top-down:** fold the shallowest eligible positions first, then rebuild.
+- **The held-out misses are genuinely untrained traffic** (`diagnostic-misses.txt`):
+  - about 20 packets per role on **UDP port 41000**, a service present only in the later arms;
+  - IPv6 hop-by-hop/MLD and neighbour-discovery packets from **new link-local addresses** (each
+    VM boot has new interface IDs).
+  - A trained-path filter *should* drop the first. The second calls for learning *which part* of
+    an address varies.
+
+## Run 3: PRECOMMITTED (2026-10-21), before any run-3 code
+
+**The two changes:**
+1. **Top-down recurrence folding:** each pass folds only the shallowest eligible positions, then
+   rebuilds, until none remain. The rule is otherwise run 2's.
+2. **Learned prefix folding** (a new crate, `path-nibble`): every address and port value is expanded
+   into its 4-bit nibbles, most significant first, each its own trie position. Recurrence folding
+   then learns *which nibbles* are volatile (the interface half of a link-local address, the low
+   nibbles of ephemeral ports) while stable prefixes and service ports stay exact. This is
+   CIDR-like generalisation **learned from traffic, never written**.
+
+**The tests:**
+- **The mutations** apply only where *every* nibble of the field matched exactly.
+- **P2 is withdrawn** (no valid real negative exists in this data).
+- **"Untrained service"** packets are those whose (L4, port) pair never appears in training,
+  computed from the data.
+
+**Predictions:**
+- **P1:** held-out pass ≥ 0.97 overall, and ≥ 0.99 excluding untrained-service packets.
+- **P1b:** the UDP-41000 packets (an untrained service) are dropped.
+- **P3:** each exact-field mutation class is dropped at ≥ 0.99.
+- **P4:** fail-closed.
+- **P5:** folding is load-bearing.
+- **P6:** the deny world wrongly drops nothing.
+- **P7:** ≥ 1 M admissions per second (paths grow to about 76 symbols).
+- **P8:** no TCP-flag wildcards, and no wildcard on an address's first 8 nibbles (prefixes stay
+  exact).

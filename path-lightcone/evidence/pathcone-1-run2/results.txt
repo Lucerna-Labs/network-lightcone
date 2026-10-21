@@ -1,0 +1,26 @@
+PATHCONE-1 run 2: recurrence folding RecurFold { min_distinct: 3, one_burst_fraction: 0.8, window_ns: 1000000000 }; train attempts < 6
+[hub] train 777 (68 folds; wildcards per field {3: 1, 4: 1, 5: 12, 6: 13, 7: 8}); held-out legitimate 879: pass 0.9522 (no folding 0.3174)
+   held-out misses by case: {"background": 42}
+   mutations dropped: exact port 0.9573 (n 796), exact address 1.0000 (n 803), protocol swap 1.0000 (n 802), direction flip (end hosts) 0.0000 (n 0)
+   deny world (708 paths): catches 244 of 796 held-out class (a); legitimate packets it would wrongly drop: 0
+[source] train 468 (33 folds; wildcards per field {3: 1, 5: 6, 6: 6, 7: 4}); held-out legitimate 521: pass 0.9443 (no folding 0.2668)
+   held-out misses by case: {"background": 29}
+   mutations dropped: exact port 1.0000 (n 475), exact address 1.0000 (n 492), protocol swap 1.0000 (n 475), direction flip (end hosts) 1.0000 (n 492)
+   deny world (441 paths): catches 122 of 475 held-out class (a); legitimate packets it would wrongly drop: 0
+[receiver] train 472 (33 folds; wildcards per field {3: 1, 5: 6, 6: 6, 7: 4}); held-out legitimate 521: pass 0.9463 (no folding 0.2841)
+   held-out misses by case: {"background": 28}
+   mutations dropped: exact port 1.0000 (n 475), exact address 1.0000 (n 493), protocol swap 1.0000 (n 475), direction flip (end hosts) 1.0000 (n 493)
+   deny world (441 paths): catches 130 of 475 held-out class (a); legitimate packets it would wrongly drop: 0
+P2 real negative (phase-1 undeclared UDP probe): dropped [false]
+P7 speed: 6693117 admissions per second (one thread)
+
+FAILS  P1 trained paths pass (>= 0.98 every role)
+FAILS  P2 the real negative is stopped
+FAILS  P3 exact-position mutations stopped (each class >= 0.99)
+HOLDS  P4 fail-closed
+HOLDS  P5 folding load-bearing (>= 0.2 gain)
+HOLDS  P6 the deny world harms no legitimate packet
+HOLDS  P7 >= 1,000,000 admissions per second
+FAILS  P8 no TCP-flag or address wildcards (over-folding repaired)
+
+4 of 8 hold

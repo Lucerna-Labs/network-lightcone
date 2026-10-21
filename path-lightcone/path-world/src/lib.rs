@@ -158,3 +158,103 @@ impl World {
         m
     }
 }
+
+/// PATHCONE-1 run 2: recurrence folding. A position folds only when its values are mostly
+/// **one-burst** — each seen within a single time window and never again — so recurring structure
+/// (services, peers, flag sets) stays exact and only genuinely ephemeral values generalise.
+#[derive(Clone, Copy, Debug)]
+pub struct RecurFold {
+    pub min_distinct: usize,
+    pub one_burst_fraction: f64,
+    pub window_ns: u64,
+}
+
+impl World {
+    /// Train from (path, capture time) pairs with recurrence folding.
+    pub fn train_timed(paths: &[(Path, u64)], fold: RecurFold) -> World {
+        let mut ps: Vec<Path> = paths.iter().map(|x| x.0.clone()).collect();
+        let times: Vec<u64> = paths.iter().map(|x| x.1).collect();
+        let seen: HashSet<Sym> = ps.iter().flatten().copied().collect();
+        let mut folds = 0;
+        loop {
+            let (nodes, trail) = build(&ps);
+            // First and last sighting of each child (node, symbol), from the paths through it.
+            let mut span: HashMap<(usize, Sym), (u64, u64)> = HashMap::new();
+            for (i, p) in ps.iter().enumerate() {
+                for (d, s) in p.iter().enumerate() {
+                    let e = span.entry((trail[i][d], *s)).or_insert((u64::MAX, 0));
+                    e.0 = e.0.min(times[i]);
+                    e.1 = e.1.max(times[i]);
+                }
+            }
+            let mut fold_at: HashSet<usize> = HashSet::new();
+            for (id, n) in nodes.iter().enumerate() {
+                let kids: Vec<&Sym> = n.children.keys().filter(|s| s.value != WILD).collect();
+                if kids.len() >= fold.min_distinct {
+                    let burst = kids.iter().filter(|s| { let (a, b) = span[&(id, ***s)]; b - a <= fold.window_ns }).count();
+                    if burst as f64 >= fold.one_burst_fraction * kids.len() as f64 {
+                        fold_at.insert(id);
+                    }
+                }
+            }
+            if fold_at.is_empty() {
+                return World { nodes, seen, folds };
+            }
+            folds += fold_at.len();
+            for (i, p) in ps.iter_mut().enumerate() {
+                for (d, s) in p.iter_mut().enumerate() {
+                    if fold_at.contains(&trail[i][d]) {
+                        s.value = WILD;
+                    }
+                }
+            }
+        }
+    }
+
+    fn walk_trace(&self, n: usize, p: &[Sym], trace: &mut Vec<bool>) -> bool {
+        let Some((s, rest)) = p.split_first() else {
+            return self.nodes[n].terminal;
+        };
+        let node = &self.nodes[n];
+        if let Some(&c) = node.children.get(s) {
+            trace.push(true);
+            if self.walk_trace(c, rest, trace) {
+                return true;
+            }
+            trace.pop();
+        }
+        if let Some(&c) = node.children.get(&Sym { field: s.field, value: WILD }) {
+            trace.push(false);
+            if self.walk_trace(c, rest, trace) {
+                return true;
+            }
+            trace.pop();
+        }
+        false
+    }
+
+    /// For a matching path: per position, whether it matched exactly (true) or by wildcard (false).
+    pub fn match_trace(&self, p: &Path) -> Option<Vec<bool>> {
+        let mut t = Vec::with_capacity(p.len());
+        (!self.nodes.is_empty() && self.walk_trace(0, p, &mut t)).then_some(t)
+    }
+}
+
+#[cfg(test)]
+mod recur_tests {
+    use super::*;
+
+    #[test]
+    fn recurring_values_stay_exact_one_burst_values_fold() {
+        let p = |a: u128, b: u128| vec![Sym { field: 5, value: a }, Sym { field: 6, value: b }];
+        // Three services (6, recurring over time) from one-burst ephemeral ports (5).
+        let mut train = Vec::new();
+        for k in 0..30u64 {
+            train.push((p(40000 + k as u128, 5201 + (k % 3) as u128), k * 10_000_000_000));
+        }
+        let w = World::train_timed(&train, RecurFold { min_distinct: 3, one_burst_fraction: 0.8, window_ns: 1_000_000_000 });
+        assert!(w.matches(&p(49999, 5202)), "any ephemeral source port");
+        assert!(!w.matches(&p(49999, 5204)), "the services stay exact");
+        assert_eq!(w.match_trace(&p(49999, 5202)).unwrap(), vec![false, true]);
+    }
+}
