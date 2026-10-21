@@ -175,3 +175,66 @@ and the new tunnel interface IDs' MLD/RS packets (see PATHCONE-1 run 6).
 - L2/ARP.
 
 That is the VM matrix's job. Imperium keeps `filter_enforced=false` until it passes.
+
+---
+
+# PATHGATE-3: the VM matrix (live traffic, three fresh VMs)
+
+**Status: PRECOMMITTED, 2026-10-21, before any PATHGATE-3 code.**
+
+## Goal
+
+Move from replayed recordings to live traffic, with real kernels, real TCP, and Imperium's
+encrypted mesh with real TUN devices. This is Imperium's own three-VM lab
+(`scripts/lightcone-vm/lab.py`), unchanged and imported from outside:
+- three fresh Ubuntu 24.04 KVM guests (hub, source, receiver);
+- the guests are joined only by private Unix-socket Ethernet links, with no NAT, TAP or bridge;
+- no host firewall, route or interface changes;
+- the VMs run as the ordinary user.
+
+## The composition
+
+- **The gate in each guest:** `pathgate gate` trains that role's run-6 allow and deny worlds from
+  the 2026-10-01 recordings (the same split as PATHCONE-1), shared read-only as `/lab/evidence`.
+- **The nft table** `pathgate` sends every non-loopback IP packet to queue 11, with no bypass:
+  - `prerouting` (priority −300, `iifname != "lo"`);
+  - `output` (priority −300, `oifname != "lo"`).
+- **The front door is the links and tunnels.** Loopback stays inside the machine, so it is not
+  gated.
+- **Guard:** the gate refuses to run unless it is in the private namespace lab or on a hypervisor
+  (`/proc/cpuinfo` has the `hypervisor` flag; the host does not) with `PATHGATE_LAB=vm`.
+- **Receipts that the gate does not make:**
+  - each guest's `tcpdump -i any`, which taps before inbound filtering and after outbound filtering;
+  - the receivers' application logs (`server_received`);
+  - the clients' echoes.
+- **The gate logs each verdict with the packet bytes.** The host re-judges every logged packet
+  offline.
+
+## Arms
+
+1. **open:** no gate table, with the 8 trained cases (tunnel UDP/TCP/ICMP, direct UDP4/UDP6/TCP6,
+   loopback UDP4/UDP6). This is the baseline.
+2. **gated:** the gate on in all three guests.
+   - **The same 8 cases.**
+   - **5 live negatives,** each with a real listener present so that only the gate can stop it:
+     - N1, an untrained UDP port: 198.51.100.2:45996;
+     - N2, an untrained TCP port: 198.51.100.2:46002;
+     - N3, the protocol swap: TCP to 45998, which is trained only as UDP;
+     - N4, an untrained source address: from 192.0.2.77, added on the source, to the trained
+       UDP 45998;
+     - N5, an untrained port through the tunnel: 10.99.0.1:45996.
+3. **receiver gate killed:** the table stays, the reader is gone. Then direct UDP4.
+4. **receiver gate restarted:** direct UDP4 again.
+
+## Predictions
+
+- **V1:** the open arm echoes every attempt of every case.
+- **V2:** the gated arm echoes every attempt of every trained case (all 8).
+- **V3:** every live negative has **0 server receipts and 0 echoes.**
+- **V4:** with the receiver's reader killed, direct UDP4 has 0 echoes and 0 server receipts. The
+  hub's capture still shows the packets arriving at the receiver's link, so the drop is the
+  receiver's own fail-closed gate. **Restarted, every attempt echoes.**
+- **V5:** the host's offline re-judgment equals the gate's verdict on 100% of logged packets.
+- **V6:** the median verdict time in each guest is < 200 µs (virtualised).
+
+Where a negative is stopped (the source's own egress, or the hub) is recorded, not predicted.
