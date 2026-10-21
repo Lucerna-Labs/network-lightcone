@@ -1,0 +1,10 @@
+[package]
+name = "pathcone1"
+version = "0.1.0"
+edition = "2021"
+description = "PATHCONE-1 orchestrator: train per-role allow worlds from recorded traffic, the reverse deny world, and the checks."
+
+[dependencies]
+path-sense = { path = "../path-sense" }
+path-world = { path = "../path-world" }
+path-admit = { path = "../path-admit" }

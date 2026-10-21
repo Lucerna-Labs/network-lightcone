@@ -1,0 +1,26 @@
+PATHCONE-1: restrained trained-path allow world + reverse deny world; fold Fold { min_distinct: 3, max_share: 0.5 }, train attempts < 6
+[hub] train 777 paths (76 folds); held-out legitimate 879: pass 0.9863 (no folding 0.3174); unparsable 0
+   held-out misses by case: {"background": 12}
+   mutations dropped: dst port 0.3443 (n 822), src address 0.3091 (n 867), protocol swap 1.0000 (n 822), direction flip 0.2491 (n 867)
+   deny world: widened allow passes 1.0000 of held-out class (a) alone, 0.3674 with the deny world; legit pass under widened+deny 0.9863; drops the deny world adds to the plain allow world: 388
+[source] train 468 paths (36 folds); held-out legitimate 521: pass 0.9904 (no folding 0.2668); unparsable 0
+   held-out misses by case: {"background": 5}
+   mutations dropped: dst port 0.3111 (n 495), src address 0.4554 (n 516), protocol swap 1.0000 (n 495), direction flip 0.8314 (n 516)
+   deny world: widened allow passes 1.0000 of held-out class (a) alone, 0.4000 with the deny world; legit pass under widened+deny 0.9904; drops the deny world adds to the plain allow world: 241
+[receiver] train 472 paths (39 folds); held-out legitimate 521: pass 0.9904 (no folding 0.2841); unparsable 0
+   held-out misses by case: {"background": 5}
+   mutations dropped: dst port 0.2485 (n 495), src address 0.4535 (n 516), protocol swap 1.0000 (n 495), direction flip 0.8295 (n 516)
+   deny world: widened allow passes 1.0000 of held-out class (a) alone, 0.3919 with the deny world; legit pass under widened+deny 0.9904; drops the deny world adds to the plain allow world: 245
+P2 real negative (phase-1 undeclared UDP probe, 1 packet(s)): dropped [false]
+P7 speed: 3000027 admissions in 0.500 s = 6001067 per second (one thread; 2959071 passed)
+
+HOLDS  P1 trained paths pass (held-out >= 0.98, every role)
+FAILS  P2 the real negative is stopped
+FAILS  P3 untrained paths stopped (each class >= 0.99)
+HOLDS  P4 fail-closed (empty world, truncated frames)
+HOLDS  P5 learned folding is load-bearing (>= 0.2 gain)
+FAILS  P6 deny world blocks class (a) under widened allow (>= 0.99)
+FAILS  P6b deny adds 0 drops to the plain allow world
+HOLDS  P7 >= 1,000,000 admissions per second
+
+4 of 8 hold

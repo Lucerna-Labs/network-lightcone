@@ -1,0 +1,9 @@
+   [diag] wildcards per field (0 dir,1 link,2 l4,3 src,4 dst,5 sport,6 dport,7 tcpf,8 icmp,9 arpop): {3: 5, 4: 4, 5: 8, 6: 13, 7: 8, 8: 1}
+   [diag] mutation (a) by (l4, source port < 32768 = reply-shaped): (n, passed) {(6, false): (206, 100), (17, false): (536, 359), (17, true): (80, 80)}
+[hub] train 777 paths (76 folds); held-out legitimate 879: pass 0.9863 (no folding 0.3174); unparsable 0
+   [diag] wildcards per field (0 dir,1 link,2 l4,3 src,4 dst,5 sport,6 dport,7 tcpf,8 icmp,9 arpop): {3: 2, 4: 1, 5: 6, 6: 4, 7: 4}
+   [diag] mutation (a) by (l4, source port < 32768 = reply-shaped): (n, passed) {(17, false): (312, 211), (6, false): (103, 50), (17, true): (80, 80)}
+[source] train 468 paths (36 folds); held-out legitimate 521: pass 0.9904 (no folding 0.2668); unparsable 0
+   [diag] wildcards per field (0 dir,1 link,2 l4,3 src,4 dst,5 sport,6 dport,7 tcpf,8 icmp,9 arpop): {3: 2, 4: 2, 5: 4, 6: 6, 7: 4, 8: 1}
+   [diag] mutation (a) by (l4, source port < 32768 = reply-shaped): (n, passed) {(17, false): (312, 242), (6, false): (103, 50), (17, true): (80, 80)}
+[receiver] train 472 paths (39 folds); held-out legitimate 521: pass 0.9904 (no folding 0.2841); unparsable 0

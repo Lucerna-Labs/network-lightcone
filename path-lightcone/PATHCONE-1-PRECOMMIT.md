@@ -66,3 +66,71 @@ its deny world is its own artifact, never mixed into the clean world.
 **Chaos, heat and amplification:** excluded at this rung. The gate is a deterministic exact matcher,
 and the fold thresholds get their chaos round in PATHCONE-2. The thermo memory is excluded by
 Jesse's direction.
+
+## Run 1: results (2026-10-21, `evidence/pathcone-1/results.txt`)
+
+| role | trained paths (folds) | held-out legitimate pass | without folding | mutation drops: dst port / src address / protocol swap / direction flip |
+|---|---|---|---|---|
+| hub | 777 (76) | **0.9863** | 0.3174 | 0.344 / 0.309 / 1.000 / 0.249 |
+| source | 468 (36) | **0.9904** | 0.2668 | 0.311 / 0.455 / 1.000 / 0.831 |
+| receiver | 472 (39) | **0.9904** | 0.2841 | 0.249 / 0.454 / 1.000 / 0.830 |
+
+- The real phase-1 probe (10.77.0.1:60675 → 10.99.0.1:45999) **passed**.
+- Speed: **6.0 million admissions per second** on one thread.
+
+| # | Result |
+|---|---|
+| P1 trained paths pass | MEASURED |
+| P2 real negative stopped | **FAILED** |
+| P3 untrained paths stopped | **FAILED** (25–83%) |
+| P4 fail-closed | MEASURED |
+| P5 folding load-bearing | MEASURED (+0.67 to +0.72) |
+| P6 deny under widened allow | **FAILED** (0.37–0.40) |
+| P6b deny adds 0 | **FAILED** (241–388 added drops) |
+| P7 speed | MEASURED |
+
+**4 of 8 hold.**
+
+### Diagnosis (`evidence/pathcone-1/diagnostic-folds.txt`; after the run)
+
+**Over-folding.** The rule "≥ 3 distinct values, none above half" folded stable structure as well
+as the ephemeral values. The wildcards per field at the hub were: source address 5, destination
+address 4, source port 8, **destination port 13**, **TCP flags 8**, ICMP 1. A host's handful of real
+services, peers and flag sets *are* several distinct values with no majority, so the rule cannot
+tell them from random ephemeral ports. Mutation (a) passed for 359 of 536 UDP packets that were not
+reply-shaped at the hub.
+
+**Two of my tests were also invalid:**
+- **The direction flip is no negative at the hub,** which forwards each packet in *and* out.
+- **Mutating a port the data legitimately folded** (an ephemeral reply port) is no negative either.
+
+P6's deny world inherits both problems.
+
+## Run 2: PRECOMMITTED (2026-10-21), before any run-2 code
+
+**The change, recurrence folding:** a position folds only when its values are mostly
+**one-burst**, meaning each value is seen within a single time window and never recurs.
+- Service ports, peer addresses and flag sets recur across flows over time, so they stay exact.
+- Ephemeral ports live in one flow, so they fold.
+- **The rule:** ≥ 3 distinct values, and ≥ 80% of them one-burst. A value is one-burst when its
+  last sighting is ≤ 1 s after its first. The window and fraction are orchestrator settings, and
+  training uses each packet's capture time.
+
+**The corrected tests (declared now):**
+- **Mutations (a) and (b)** change only a position the packet matched **exactly** (not through a
+  wildcard), to a value never trained, preferring the destination port and then the source port
+  for (a).
+- **The direction flip** applies to the end hosts (source and receiver) only.
+- **P6's deny world** is trained on the corrected class (a) of the training paths. It is tested on
+  held-out class (a) under the plain allow world, where a "widened" arm is no longer meaningful.
+  Its added drops are reported.
+
+**Predictions** (otherwise as run 1):
+- P1 ≥ 0.98;
+- P2 the probe dropped;
+- P3 each class ≥ 0.99;
+- P4 fail-closed;
+- P5 folding gains ≥ 0.2;
+- P7 ≥ 1 M/s.
+- **P8, recurrence folding repairs over-folding:** no destination-port, address or TCP-flag
+  wildcards remain, except where a position's values really are one-burst.
