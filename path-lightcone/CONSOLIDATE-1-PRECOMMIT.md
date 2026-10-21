@@ -108,3 +108,41 @@ match that accepts any value at the given positions. The world's law is unchange
 The predictions stand, with `own_address` and `authenticated_tunnel` read in this corrected sense.
 **C2's "every self-caused drop" means every *explained* one.** Self-sourced drops whose novelty is
 elsewhere are reported as `unexplained`.
+
+## Method change (2026-10-21, before the run): the adversary is tested offline, not injected live
+
+The attacker arm as first written needed a live packet-spoofing injector in the lab. That is not
+what CONSOLIDATE-1 is testing, and building a spoofing tool is not warranted: **PATHGATE-3 already
+proved, live in VMs, that door one drops and stops exactly these shapes** (untrained ports,
+untrained addresses, protocol swaps, and the fail-closed arms). The only new claim here is about
+**classification and consolidation**: attacker novelty must never be read as self, so it can never
+enter the next pack.
+
+That claim is a property of the `path-self` law and the `path-consolidate` law. It is tested
+offline, which is stronger (exhaustive, deterministic) than a handful of live injections:
+
+- **The adversarial set is derived by `brain1` from each role's own trained paths and the
+  episode's self readings**, by field substitution only (no live traffic):
+  - **A1, spoofed self source on a physical link:** a trained inbound path with its source replaced
+    by the receiver's own fresh tunnel address, arriving on a physical interface (not a TUN).
+  - **A2, fabricated link-local novelty:** an MLD/RS path from a link-local address the host does
+    not own, inbound on a physical interface.
+  - **A3, novel service from a spoofed self source:** source = one of the host's own addresses, but
+    destination port untrained (novelty is not in the address).
+  - **A4, outbound exfiltration:** source = the host's own address, destination and port untrained.
+- `path-self`'s unit test already pins the core case: the host's own address **arriving on a
+  physical link is a spoof** (`Unexplained`), and novelty beyond the address is `Unexplained`.
+
+**Revised predictions:**
+- **C1:** every adversarial path A1–A4 classifies `Unexplained`.
+- **C2:** the candidate packs contain 0 adversarial paths and every self-caused drop (that the deny
+  world does not refuse).
+- **C3:** add-only.
+- **C4:** offline, the candidate world admits 100% of the self-caused drops and **0** of A1–A4.
+- **C5 (revised):** in the live episode 4, every trained case still echoes and the 5 live negatives
+  are still stopped — i.e. consolidation did not loosen door one. (The negatives are PATHGATE-3's,
+  already-proven shapes; no new injector.)
+- **C6:** episode 4 has fewer self-caused drops than episode 1 on every role.
+
+The live VM lab now runs **legitimate restarts only** (fresh TUNs each episode), which is what
+produces the real self-caused drops the brain learns from.
