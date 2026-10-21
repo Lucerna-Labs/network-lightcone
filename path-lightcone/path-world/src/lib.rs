@@ -258,3 +258,96 @@ mod recur_tests {
         assert_eq!(w.match_trace(&p(49999, 5202)).unwrap(), vec![false, true]);
     }
 }
+
+impl World {
+    /// PATHCONE-1 run 3: **top-down** recurrence folding. The rule is run 2's, but each pass folds
+    /// only the eligible positions at the shallowest eligible depth, then rebuilds, so branches that
+    /// merge after a shallow fold are judged together (a flag set recurs across merged flows and
+    /// stays exact). Repeats until nothing is eligible.
+    pub fn train_topdown(paths: &[(Path, u64)], fold: RecurFold) -> World {
+        let mut ps: Vec<Path> = paths.iter().map(|x| x.0.clone()).collect();
+        let times: Vec<u64> = paths.iter().map(|x| x.1).collect();
+        let seen: HashSet<Sym> = ps.iter().flatten().copied().collect();
+        let mut folds = 0;
+        loop {
+            let (nodes, trail) = build(&ps);
+            let mut span: HashMap<(usize, Sym), (u64, u64)> = HashMap::new();
+            let mut depth: HashMap<usize, usize> = HashMap::new();
+            for (i, p) in ps.iter().enumerate() {
+                for (d, s) in p.iter().enumerate() {
+                    let e = span.entry((trail[i][d], *s)).or_insert((u64::MAX, 0));
+                    e.0 = e.0.min(times[i]);
+                    e.1 = e.1.max(times[i]);
+                    depth.insert(trail[i][d], d);
+                }
+            }
+            let mut eligible: Vec<(usize, usize)> = Vec::new();
+            for (id, n) in nodes.iter().enumerate() {
+                let kids: Vec<&Sym> = n.children.keys().filter(|s| s.value != WILD).collect();
+                if kids.len() >= fold.min_distinct {
+                    let burst = kids.iter().filter(|s| { let (a, b) = span[&(id, ***s)]; b - a <= fold.window_ns }).count();
+                    if burst as f64 >= fold.one_burst_fraction * kids.len() as f64 {
+                        eligible.push((id, depth[&id]));
+                    }
+                }
+            }
+            let Some(shallowest) = eligible.iter().map(|e| e.1).min() else {
+                return World { nodes, seen, folds };
+            };
+            let fold_at: HashSet<usize> = eligible.iter().filter(|e| e.1 == shallowest).map(|e| e.0).collect();
+            folds += fold_at.len();
+            for (i, p) in ps.iter_mut().enumerate() {
+                for (d, s) in p.iter_mut().enumerate() {
+                    if fold_at.contains(&trail[i][d]) {
+                        s.value = WILD;
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod topdown_tests {
+    use super::*;
+
+    #[test]
+    fn flags_recur_across_merged_flows() {
+        // Ten flows to one service, each from a one-burst ephemeral port, each with the same three
+        // flag sets inside its burst. Per flow the flags look one-burst; across merged flows they recur.
+        let p = |sp: u128, f: u128| vec![Sym { field: 5, value: sp }, Sym { field: 7, value: f }];
+        let mut train = Vec::new();
+        for k in 0..10u64 {
+            for (j, f) in [2u128, 18, 16].iter().enumerate() {
+                train.push((p(40000 + k as u128, *f), k * 10_000_000_000 + j as u64));
+            }
+        }
+        let rule = RecurFold { min_distinct: 3, one_burst_fraction: 0.8, window_ns: 1_000_000_000 };
+        let all_at_once = World::train_timed(&train, rule);
+        assert!(all_at_once.folded_fields().contains_key(&7), "run 2's bug: flags fold under each flow");
+        let td = World::train_topdown(&train, rule);
+        assert!(!td.folded_fields().contains_key(&7), "top-down: the flags stay exact");
+        assert!(td.matches(&p(49999, 18)) && !td.matches(&p(49999, 1)));
+    }
+}
+
+impl World {
+    /// Diagnostic: the trained prefix leading to every wildcard of `field`, with how many exact
+    /// siblings sit beside the wildcard.
+    pub fn wild_contexts(&self, field: u8) -> Vec<(Path, usize)> {
+        let mut out = Vec::new();
+        let mut stack: Vec<(usize, Path)> = vec![(0, Vec::new())];
+        while let Some((n, pre)) = stack.pop() {
+            let node = &self.nodes[n];
+            if node.children.keys().any(|s| s.field == field && s.value == WILD) {
+                out.push((pre.clone(), node.children.keys().filter(|s| s.value != WILD).count()));
+            }
+            for (s, &c) in &node.children {
+                let mut p = pre.clone();
+                p.push(*s);
+                stack.push((c, p));
+            }
+        }
+        out
+    }
+}

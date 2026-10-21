@@ -1,0 +1,33 @@
+PATHCONE-1 run 3: top-down recurrence folding RecurFold { min_distinct: 3, one_burst_fraction: 0.8, window_ns: 1000000000 } over nibble-expanded paths; train attempts < 6
+[hub] train 777 (104 folds; wildcards per original field {5: 48, 6: 48, 7: 8})
+   held-out legitimate 879: pass 0.9454 (no folding 0.3174); excluding 0 untrained-service packets: pass 0.9454
+   UDP 41000 (untrained service false): dropped 20 of 264
+   held-out misses by case: {"background": 42, "loopback_udp4": 6}
+   mutations dropped: exact port 1.0000 (n 790), exact address 1.0000 (n 831), protocol swap 1.0000 (n 796), direction flip (end hosts) 0.0000 (n 0)
+   deny world (708 paths): catches 244 of 790 held-out class (a); legitimate packets it would wrongly drop: 0
+[source] train 468 (52 folds; wildcards per original field {5: 24, 6: 24, 7: 4})
+   held-out legitimate 521: pass 0.9443 (no folding 0.2668); excluding 0 untrained-service packets: pass 0.9443
+   UDP 41000 (untrained service false): dropped 20 of 142
+   held-out misses by case: {"background": 29}
+   mutations dropped: exact port 1.0000 (n 475), exact address 1.0000 (n 492), protocol swap 1.0000 (n 475), direction flip (end hosts) 1.0000 (n 492)
+   deny world (441 paths): catches 122 of 475 held-out class (a); legitimate packets it would wrongly drop: 0
+[receiver] train 472 (52 folds; wildcards per original field {5: 24, 6: 24, 7: 4})
+   held-out legitimate 521: pass 0.9463 (no folding 0.2841); excluding 0 untrained-service packets: pass 0.9463
+   UDP 41000 (untrained service false): dropped 20 of 142
+   held-out misses by case: {"background": 28}
+   mutations dropped: exact port 1.0000 (n 475), exact address 1.0000 (n 493), protocol swap 1.0000 (n 475), direction flip (end hosts) 1.0000 (n 493)
+   deny world (441 paths): catches 130 of 475 held-out class (a); legitimate packets it would wrongly drop: 0
+(P2 withdrawn) phase-1 probe to UDP 45999, a trained service here: passes [false]
+P7 speed: 1254670 admissions per second (one thread, expanded paths)
+
+FAILS  P1 held-out pass >= 0.97 every role
+FAILS  P1 excluding untrained-service packets >= 0.99 every role
+FAILS  P1b UDP 41000 (untrained service) dropped
+HOLDS  P3 exact-field mutations stopped (each class >= 0.99)
+HOLDS  P4 fail-closed
+HOLDS  P5 folding load-bearing (>= 0.2 gain)
+HOLDS  P6 the deny world harms no legitimate packet
+HOLDS  P7 >= 1,000,000 admissions per second
+FAILS  P8 no TCP-flag wildcard, no wildcard in an address's first 8 nibbles
+
+5 of 9 hold

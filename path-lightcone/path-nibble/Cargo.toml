@@ -1,0 +1,8 @@
+[package]
+name = "path-nibble"
+version = "0.1.0"
+edition = "2021"
+description = "PATHCONE: expand address and port symbols into 4-bit nibble positions, so prefix folding is learned."
+
+[dependencies]
+path-sense = { path = "../path-sense" }

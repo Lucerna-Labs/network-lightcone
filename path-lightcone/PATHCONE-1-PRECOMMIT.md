@@ -205,3 +205,69 @@ Also:
 - **P7:** ≥ 1 M admissions per second (paths grow to about 76 symbols).
 - **P8:** no TCP-flag wildcards, and no wildcard on an address's first 8 nibbles (prefixes stay
   exact).
+
+## Run 3: results (2026-10-21, `evidence/pathcone-1-run3/`)
+
+| role | held-out pass | exact port | exact address | protocol swap | direction flip | deny wrongly drops |
+|---|---|---|---|---|---|---|
+| hub | 0.9454 | 1.000 | 1.000 | 1.000 | (n/a) | 0 |
+| source | 0.9443 | 1.000 | 1.000 | 1.000 | 1.000 | 0 |
+| receiver | 0.9463 | 1.000 | 1.000 | 1.000 | 1.000 | 0 |
+
+- Speed: **1.25 M/s**, down from 6.7 M/s: the expanded paths are about 4 to 9 times longer.
+- **5 of 9 hold:** P3, P4, P5, P6 and P7.
+- **P1, P1x, P1b and P8 FAIL.**
+
+### Diagnoses (after the run)
+
+**P1b's premise was wrong.** UDP 41000 is the Imperium **tunnel port**: a heavily trained service.
+- The 20 misses per role are one **loopback control flow** per arm (interface `lo`, one ephemeral
+  source port per arm → 41000).
+- Training holds exactly one example of it, so nothing can be learned to fold it. The "untrained
+  service" set is empty in this data.
+
+**Nibble expansion learned no prefix.**
+- The new link-local addresses are the tunnel interfaces' (`impa`, `impb`, `impc`) random interface
+  IDs, recreated at each arm's start.
+- Training holds 1 to 2 of them per trie node, which is below min_distinct 3.
+- No address nibble folded. The cost was a 5× slowdown, with no gain.
+
+**Top-down did not stop the TCP-flag wildcards, and the reason is the data, not the depth**
+(`diagnostic-flag-wildcards.txt`):
+- every remaining flag wildcard sits under a *service* port (46000 or 46001), after the flows had
+  merged;
+- the whole TCP case set of an arm lasts about **10 ms**, so every flag set there is "one-burst";
+- **time recurrence cannot tell structure from ephemera in a capture this short.** The run-2/3 law
+  is the wrong signal for this data.
+
+(The top-down unit test still shows the depth effect on synthetic data.)
+
+## Run 4: PRECOMMITTED (2026-10-21), before any run-4 code
+
+**The law changes from time to context.** Borrowed from linguistics, the *continuation count*
+(Kneser–Ney): a word seen in many different contexts is part of the language, and a word seen in
+one context is incidental.
+
+- **The context count:** for each (field, value), the number of distinct raw training prefixes it
+  directly follows.
+- **Ephemeral:** a value with a context count of exactly 1.
+  - A throwaway port belongs to one conversation, so it is ephemeral.
+  - A service port follows many client ports, and a flag set follows many flows, so neither is.
+- **The fold rule:** a node folds when it has ≥ 3 non-wild children (min_distinct) and ≥ 0.8 of
+  them are ephemeral.
+- **Context counts come from the raw (unfolded) paths, so they stay stable as folding merges
+  branches.** Folding is iterated top-down, as in run 3. There is no time window, and no value is
+  ever written by hand.
+- **Paths are raw again** (nibbles dropped: no gain, 5× cost).
+- **The tests are run 3's.** P1b becomes "the loopback control flow is reported, not predicted":
+  it has one training example.
+
+**Predictions:**
+- **P1:** held-out pass ≥ 0.95 on every role (run 3: 0.944–0.946). About 4% of the held-out
+  packets are one-example paths: the loopback flow, and the new tunnel IDs' MLD/RS packets.
+- **P3:** each exact-field mutation class is dropped at ≥ 0.99.
+- **P4:** fail-closed.
+- **P5:** folding is load-bearing (≥ 0.2 gain).
+- **P6:** the deny world harms 0 legitimate packets.
+- **P7:** ≥ 5 M/s.
+- **P8:** **no TCP-flag wildcard and no address wildcard.**
