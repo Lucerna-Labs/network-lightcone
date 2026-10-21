@@ -238,3 +238,51 @@ encrypted mesh with real TUN devices. This is Imperium's own three-VM lab
 - **V6:** the median verdict time in each guest is < 200 µs (virtualised).
 
 Where a negative is stopped (the source's own egress, or the hub) is recorded, not predicted.
+
+## PATHGATE-3 results (2026-10-21, `evidence/pathgate-3/`): all six hold, on the first run
+
+**Command:** `python3 vm/pathgate_vm.py <pathgate>`.
+- It ran in Imperium's lab (`lab.py`, `packet_io.py`, `packet_log.py` and `traffic_guest.py`,
+  imported unchanged) as the ordinary user.
+- **The image:** Ubuntu 24.04, 20260926, SHA-256 checked.
+- **The guests:** three fresh KVM guests on private Unix-socket links, with no host network change.
+- Imperium's encrypted mesh ran with real TUNs.
+- **Only named files are exported:** the run directory holds lab keys and is not copied.
+
+| arm | case | attempts | echoes | server got | source out | hub in | hub out | receiver in |
+|---|---|---|---|---|---|---|---|---|
+| open | 8 trained cases | 49 | **49** | all | | | | |
+| open | 5 negatives (control: listeners reachable) | 21 | **21** | 21 | | | | |
+| gated | tunnel UDP4 / TCP4 / ICMP4 | 10 / 5 / 3 | **10 / 5 / 3** | 10 / 5 / — | | | | |
+| gated | direct UDP4 / UDP6 / TCP6 | 10 / 10 / 5 | **10 / 10 / 5** | 10 / 10 / 5 | | | | |
+| gated | loopback UDP4 / UDP6 (not gated) | 3 / 3 | 3 / 3 | 3 / 3 | | | | |
+| gated | N1 untrained UDP port 45996 | 5 | **0** | 0 | 0 | 0 | 0 | 0 |
+| gated | N2 untrained TCP port 46002 | 3 | **0** | 0 | 0 | 0 | 0 | 0 |
+| gated | N3 TCP to UDP-only 45998 | 3 | **0** | 0 | 0 | 0 | 0 | 0 |
+| gated | N4 untrained source 192.0.2.77 | 5 | **0** | 0 | 0 | 0 | 0 | 0 |
+| gated | N5 untrained port in the tunnel | 5 | **0** | 0 | 0 | 0 | 0 | 0 |
+| receiver gate killed | direct UDP4 | 10 | **0** | 0 | 10 | 10 | 10 | **10** |
+| receiver gate restarted | direct UDP4 | 10 | **10** | 10 | 10 | 10 | 10 | 10 |
+
+**Every prediction holds:**
+- **V1:** the open arm echoes everything.
+- **V2:** every attempt of every trained case echoes through the gates.
+- **V3:** every live negative has 0 echoes and 0 server receipts.
+  - All 21 negative packets were stopped at the **source's own egress gate**: they never reached
+    the wire.
+- **V4:** with the receiver's reader killed, the packets reach the receiver's link (`receiver in`
+  10) and nothing gets through. Restarted, 10/10 pass.
+- **V5:** the host's offline re-judgment equals the gate's verdict on **937/937** logged packets.
+- **V6:** the median verdict is 14.6–21.1 µs per guest (p99 113–478 µs, virtualised).
+
+**Legitimate packets the gates dropped: 10 of 916.** All were housekeeping, and none affected a
+case:
+- 6 unicast IPv6 neighbour solicitations between link-local addresses (a source/destination pairing
+  absent from training);
+- 4 router solicitations from the fresh tunnel interface IDs.
+
+These are the one-example paths the offline results predicted.
+
+**Limits:** the traffic is synthetic. There is no ARP/L2 gating, no physical NIC offload, and the
+guest kernels are not the host's. Imperium's own `filter_enforced` stays false: this gate enforced
+only inside the lab guests.

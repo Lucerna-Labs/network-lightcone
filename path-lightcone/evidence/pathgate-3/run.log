@@ -1,0 +1,122 @@
+Run directory: /home/jesse/Desktop/Projects/imperium-main/imperium-main/target/lightcone-vm/pathgate-runs/20261021-093053
+Arm open
+  open: tunnel_udp4
+    attempted=10 echoes=10
+  open: tunnel_tcp4
+    attempted=5 echoes=5
+  open: tunnel_icmp4
+    attempted=3 echoes=3
+  open: direct_udp4
+    attempted=10 echoes=10
+  open: direct_udp6
+    attempted=10 echoes=10
+  open: direct_tcp6
+    attempted=5 echoes=5
+  open: loopback_udp4
+    attempted=3 echoes=3
+  open: loopback_udp6
+    attempted=3 echoes=3
+  open: neg_udp_port
+    attempted=5 echoes=5
+  open: neg_tcp_port
+    attempted=3 echoes=3
+  open: neg_protocol
+    attempted=3 echoes=3
+  open: neg_address
+    attempted=5 echoes=5
+  open: neg_tunnel_port
+    attempted=5 echoes=5
+Arm gated
+  gated: tunnel_udp4
+    attempted=10 echoes=10
+  gated: tunnel_tcp4
+    attempted=5 echoes=5
+  gated: tunnel_icmp4
+    attempted=3 echoes=3
+  gated: direct_udp4
+    attempted=10 echoes=10
+  gated: direct_udp6
+    attempted=10 echoes=10
+  gated: direct_tcp6
+    attempted=5 echoes=5
+  gated: loopback_udp4
+    attempted=3 echoes=3
+  gated: loopback_udp6
+    attempted=3 echoes=3
+  gated: neg_udp_port
+    attempted=5 echoes=0
+  gated: neg_tcp_port
+    attempted=3 echoes=0
+  gated: neg_protocol
+    attempted=3 echoes=0
+  gated: neg_address
+    attempted=5 echoes=0
+  gated: neg_tunnel_port
+    attempted=5 echoes=0
+Arm gate_killed
+  gate_killed: direct_udp4
+    attempted=10 echoes=0
+Arm gate_restarted
+  gate_restarted: direct_udp4
+    attempted=10 echoes=10
+{
+ "owned_vms_stopped": true,
+ "verdicts": {
+  "hub/gate.log": {
+   "rejudge": "rejudged 364: gate passed 360, offline agrees 364/364",
+   "verdicts": 364,
+   "passed": 360,
+   "median_ns": 14736,
+   "p99_ns": 151663
+  },
+  "source/gate.log": {
+   "rejudge": "rejudged 303: gate passed 278, offline agrees 303/303",
+   "verdicts": 303,
+   "passed": 278,
+   "median_ns": 14573,
+   "p99_ns": 175193
+  },
+  "receiver/gate.log": {
+   "rejudge": "rejudged 250: gate passed 248, offline agrees 250/250",
+   "verdicts": 250,
+   "passed": 248,
+   "median_ns": 15193,
+   "p99_ns": 477541
+  },
+  "receiver/gate2.log": {
+   "rejudge": "rejudged 20: gate passed 20, offline agrees 20/20",
+   "verdicts": 20,
+   "passed": 20,
+   "median_ns": 21148,
+   "p99_ns": 112978
+  }
+ }
+}
+open            tunnel_udp4      attempts 10 echoes 10 server 10 src_out 10 hub_in 10 hub_out 10 recv_in 10
+open            tunnel_tcp4      attempts  5 echoes 5 server 5 src_out 5 hub_in 5 hub_out 5 recv_in 5
+open            tunnel_icmp4     attempts  3 echoes 3 server None src_out 3 hub_in 3 hub_out 3 recv_in 3
+open            direct_udp4      attempts 10 echoes 10 server 10 src_out 10 hub_in 10 hub_out 10 recv_in 10
+open            direct_udp6      attempts 10 echoes 10 server 10 src_out 10 hub_in 10 hub_out 10 recv_in 10
+open            direct_tcp6      attempts  5 echoes 5 server 5 src_out 5 hub_in 5 hub_out 5 recv_in 5
+open            loopback_udp4    attempts  3 echoes 3 server 3 src_out 0 hub_in 3 hub_out 0 recv_in 3
+open            loopback_udp6    attempts  3 echoes 3 server 3 src_out 0 hub_in 3 hub_out 0 recv_in 3
+open            neg_udp_port     attempts  5 echoes 5 server 5 src_out 5 hub_in 5 hub_out 5 recv_in 5
+open            neg_tcp_port     attempts  3 echoes 3 server 3 src_out 3 hub_in 3 hub_out 3 recv_in 3
+open            neg_protocol     attempts  3 echoes 3 server 3 src_out 3 hub_in 3 hub_out 3 recv_in 3
+open            neg_address      attempts  5 echoes 5 server 5 src_out 5 hub_in 5 hub_out 5 recv_in 5
+open            neg_tunnel_port  attempts  5 echoes 5 server 5 src_out 5 hub_in 5 hub_out 5 recv_in 5
+gated           tunnel_udp4      attempts 10 echoes 10 server 10 src_out 10 hub_in 10 hub_out 10 recv_in 10
+gated           tunnel_tcp4      attempts  5 echoes 5 server 5 src_out 5 hub_in 5 hub_out 5 recv_in 5
+gated           tunnel_icmp4     attempts  3 echoes 3 server None src_out 3 hub_in 3 hub_out 3 recv_in 3
+gated           direct_udp4      attempts 10 echoes 10 server 10 src_out 10 hub_in 10 hub_out 10 recv_in 10
+gated           direct_udp6      attempts 10 echoes 10 server 10 src_out 10 hub_in 10 hub_out 10 recv_in 10
+gated           direct_tcp6      attempts  5 echoes 5 server 5 src_out 5 hub_in 5 hub_out 5 recv_in 5
+gated           loopback_udp4    attempts  3 echoes 3 server 3 src_out 0 hub_in 3 hub_out 0 recv_in 3
+gated           loopback_udp6    attempts  3 echoes 3 server 3 src_out 0 hub_in 3 hub_out 0 recv_in 3
+gated           neg_udp_port     attempts  5 echoes 0 server 0 src_out 0 hub_in 0 hub_out 0 recv_in 0
+gated           neg_tcp_port     attempts  3 echoes 0 server 0 src_out 0 hub_in 0 hub_out 0 recv_in 0
+gated           neg_protocol     attempts  3 echoes 0 server 0 src_out 0 hub_in 0 hub_out 0 recv_in 0
+gated           neg_address      attempts  5 echoes 0 server 0 src_out 0 hub_in 0 hub_out 0 recv_in 0
+gated           neg_tunnel_port  attempts  5 echoes 0 server 0 src_out 0 hub_in 0 hub_out 0 recv_in 0
+gate_killed     direct_udp4      attempts 10 echoes 0 server 0 src_out 10 hub_in 10 hub_out 10 recv_in 10
+gate_restarted  direct_udp4      attempts 10 echoes 10 server 10 src_out 10 hub_in 10 hub_out 10 recv_in 10

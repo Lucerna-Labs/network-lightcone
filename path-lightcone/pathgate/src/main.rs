@@ -10,6 +10,7 @@
 //!                                    (+ mutations): in = Ethernet frames onto the veth (PREROUTING),
 //!                                    out = header-included raw IP sends (OUTPUT)
 //!   report MANIFEST OBSERVED GATELOG compare kernel outcome with the offline verdict
+//!   rejudge EVIDENCE ROLE GATELOG    re-judge byte-logged verdicts (PATHGATE_LOG_BYTES=1) offline
 
 use path_admit::admit;
 use path_frame::held_path;
@@ -183,12 +184,24 @@ fn mutate(ip: &[u8], w: &Worlds, class: usize, hook: u8) -> Option<Vec<u8>> {
     Some(m)
 }
 
+/// Lab only: PATHGATE_LAB=1 inside a private user + network namespace, or PATHGATE_LAB=vm on a
+/// hypervisor guest (the `hypervisor` CPU flag; the real host has none). Policy, labelled.
 fn lab_only() {
     let same = |ns: &str| std::fs::read_link(format!("/proc/self/ns/{ns}")).ok() == std::fs::read_link(format!("/proc/1/ns/{ns}")).ok();
-    if std::env::var("PATHGATE_LAB").as_deref() != Ok("1") || same("net") || same("user") {
-        eprintln!("pathgate: refusing — lab only (PATHGATE_LAB=1 inside a private user + network namespace)");
+    let guest = std::fs::read_to_string("/proc/cpuinfo").map(|c| c.lines().any(|l| l.starts_with("flags") && l.split_whitespace().any(|f| f == "hypervisor"))).unwrap_or(false);
+    let ok = match std::env::var("PATHGATE_LAB").as_deref() {
+        Ok("1") => !same("net") && !same("user"),
+        Ok("vm") => guest,
+        _ => false,
+    };
+    if !ok {
+        eprintln!("pathgate: refusing — lab only (PATHGATE_LAB=1 in a private user + network namespace, or PATHGATE_LAB=vm on a VM guest)");
         std::process::exit(2);
     }
+}
+
+fn to_hex(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
 fn mac(s: &str) -> Vec<u8> {
@@ -204,6 +217,7 @@ fn main() {
             let mut q = PacketQueue::bind(a[4].parse().unwrap(), QUEUE_CAPACITY).expect("bind gate queue");
             println!("READY");
             let deadline = Instant::now() + Duration::from_secs(a[5].parse().unwrap());
+            let log_bytes = std::env::var_os("PATHGATE_LOG_BYTES").is_some();
             while Instant::now() < deadline {
                 // Any transport error ends the reader: the kernel then drops everything held (fail-closed).
                 let Some(pk) = q.receive(Duration::from_millis(50)).expect("receive") else { continue };
@@ -211,8 +225,9 @@ fn main() {
                 let path = held_path(pk.bytes(), pk.hook);
                 let pass = admit(&w.allow, &w.deny, path.as_ref());
                 let h = fnv(pk.bytes());
+                let extra = if log_bytes { format!(" {} {}", pk.hook, to_hex(pk.bytes())) } else { String::new() };
                 q.finish(pk, if pass { KernelDisposition::Release } else { KernelDisposition::Discard }).expect("verdict");
-                println!("V {h:016x} {} {}", pass as u8, t.elapsed().as_nanos());
+                println!("V {h:016x} {} {}{extra}", pass as u8, t.elapsed().as_nanos());
             }
             println!("FINISHED");
         }
@@ -323,6 +338,23 @@ fn main() {
                 }
             }
         }
-        _ => eprintln!("usage: pathgate gate|observe|inject|report ..."),
+        Some("rejudge") => {
+            // rejudge EVIDENCE ROLE GATELOG: re-judge every byte-logged verdict offline.
+            let (w, _) = train(&a[2], &a[3]);
+            let log = std::fs::read_to_string(&a[4]).unwrap();
+            let (mut n, mut agree, mut passed) = (0usize, 0usize, 0usize);
+            for l in log.lines().filter(|l| l.starts_with("V ")) {
+                let v: Vec<&str> = l.split(' ').collect();
+                if v.len() < 6 {
+                    continue;
+                }
+                let offline = admit(&w.allow, &w.deny, held_path(&hex(v[5]), v[4].parse().unwrap()).as_ref());
+                n += 1;
+                passed += (v[2] == "1") as usize;
+                agree += (offline == (v[2] == "1")) as usize;
+            }
+            println!("rejudged {n}: gate passed {passed}, offline agrees {agree}/{n}");
+        }
+        _ => eprintln!("usage: pathgate gate|observe|inject|report|rejudge ..."),
     }
 }
