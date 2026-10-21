@@ -351,3 +351,86 @@ impl World {
         out
     }
 }
+
+/// PATHCONE-1 run 4: context folding. Borrowed law: the *continuation count* of linguistics
+/// (Kneser–Ney) — a value that follows many different contexts is part of the language; a value
+/// that follows few is incidental. A value is ephemeral when its context count is below
+/// `ephemeral_below` (run 4: 2, "exactly one"; run 5: min_distinct). A node folds when at least
+/// `min_distinct` of its exact children are present and at least `ephemeral_fraction` are ephemeral.
+#[derive(Clone, Copy, Debug)]
+pub struct CtxFold {
+    pub min_distinct: usize,
+    pub ephemeral_fraction: f64,
+    pub ephemeral_below: usize,
+}
+
+impl World {
+    /// Train with context folding, top-down. Context counts come from the raw paths once (the
+    /// distinct raw-trie parents of each symbol), so they stay stable as folding merges branches.
+    pub fn train_context(paths: &[Path], fold: CtxFold) -> World {
+        let seen: HashSet<Sym> = paths.iter().flatten().copied().collect();
+        let (_, raw_trail) = build(paths);
+        let mut parents: HashMap<Sym, HashSet<usize>> = HashMap::new();
+        for (i, p) in paths.iter().enumerate() {
+            for (d, s) in p.iter().enumerate() {
+                parents.entry(*s).or_default().insert(raw_trail[i][d]);
+            }
+        }
+        let ctx: HashMap<Sym, usize> = parents.into_iter().map(|(s, h)| (s, h.len())).collect();
+        let mut ps: Vec<Path> = paths.to_vec();
+        let mut folds = 0;
+        loop {
+            let (nodes, trail) = build(&ps);
+            let mut depth: HashMap<usize, usize> = HashMap::new();
+            for t in &trail {
+                for (d, &n) in t.iter().enumerate() {
+                    depth.insert(n, d);
+                }
+            }
+            let mut eligible: Vec<(usize, usize)> = Vec::new();
+            for (id, n) in nodes.iter().enumerate() {
+                let kids: Vec<&Sym> = n.children.keys().filter(|s| s.value != WILD).collect();
+                if kids.len() >= fold.min_distinct {
+                    let eph = kids.iter().filter(|s| ctx[**s] < fold.ephemeral_below).count();
+                    if eph as f64 >= fold.ephemeral_fraction * kids.len() as f64 {
+                        eligible.push((id, depth[&id]));
+                    }
+                }
+            }
+            let Some(shallowest) = eligible.iter().map(|e| e.1).min() else {
+                return World { nodes, seen, folds };
+            };
+            let fold_at: HashSet<usize> = eligible.iter().filter(|e| e.1 == shallowest).map(|e| e.0).collect();
+            folds += fold_at.len();
+            for (i, p) in ps.iter_mut().enumerate() {
+                for (d, s) in p.iter_mut().enumerate() {
+                    if fold_at.contains(&trail[i][d]) {
+                        s.value = WILD;
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod context_tests {
+    use super::*;
+
+    #[test]
+    fn ephemeral_ports_fold_flags_and_services_stay() {
+        // Ten flows, all within one millisecond (no time signal): ephemeral port (5), service (6), flags (7).
+        let p = |sp: u128, svc: u128, f: u128| vec![Sym { field: 5, value: sp }, Sym { field: 6, value: svc }, Sym { field: 7, value: f }];
+        let mut train = Vec::new();
+        for k in 0..10u128 {
+            for f in [2u128, 18, 16] {
+                train.push(p(40000 + k, 46000 + k % 2, f));
+            }
+        }
+        let w = World::train_context(&train, CtxFold { min_distinct: 3, ephemeral_fraction: 0.8, ephemeral_below: 2 });
+        let ff = w.folded_fields();
+        assert!(ff.contains_key(&5) && !ff.contains_key(&6) && !ff.contains_key(&7), "{ff:?}");
+        assert!(w.matches(&p(49999, 46001, 18)));
+        assert!(!w.matches(&p(49999, 46002, 18)) && !w.matches(&p(49999, 46000, 1)));
+    }
+}

@@ -310,3 +310,45 @@ TCP-flag wildcard and no address wildcard**. That is the structurally clean worl
 - **P6:** the deny world harms 0 legitimate packets.
 - **P7:** ≥ 5 M/s.
 - **P8:** no TCP-flag wildcard and no address wildcard, **on every role, the hub included**.
+
+## Run 5: results (2026-10-21, `evidence/pathcone-1-run5/`)
+
+| role | held-out pass (no folding) | wildcards | mutations dropped | deny wrongly drops |
+|---|---|---|---|---|
+| hub | **0.9465** (0.3174) | link 2, src 1, sport 13, dport 11 | 1.000 every class | 0 |
+| source | 0.9443 (0.2668) | link 2, sport 6, dport 6 | 1.000 every class | 0 |
+| receiver | 0.9463 (0.2841) | link 2, sport 6, dport 6 | 1.000 every class | 0 |
+
+- Speed: 6.2 M/s.
+- **6 of 7 hold:** P1, P3, P4, P5, P6 and P7. **P8 FAILS.**
+- There are no TCP-flag wildcards anywhere, but there are link and address wildcards
+  (`diagnostic-wildcards.txt`).
+
+**Diagnosis of the link wildcards:** the link type (IPv4, IPv6, ARP) sits right under the direction
+symbol, which has only 2 values.
+- So every link type follows at most 2 contexts, which is below 3 by construction rather than
+  because it is ephemeral.
+- **"Few contexts" must be measured against how many contexts the field has at all.**
+
+**Diagnosis of the address wildcard:** the hub's single address wildcard sits under (inbound,
+ICMPv6). It holds the link-local neighbour-discovery senders, each heard in one context.
+
+## Run 6: PRECOMMITTED (2026-10-21), before any run-6 code
+
+**One change:** a value is ephemeral when its context count is below **min(min_distinct, the
+number of contexts its field occurs in)**. A value that follows every context its field has is
+universal, never ephemeral. Everything else is run 5's.
+
+**Predictions:**
+- **P1:** held-out pass ≥ 0.94 on every role.
+- **P3:** each exact-field mutation class is dropped at ≥ 0.99.
+- **P4:** fail-closed.
+- **P5:** folding is load-bearing (≥ 0.2).
+- **P6:** the deny world harms 0 legitimate packets.
+- **P7:** ≥ 5 M/s.
+- **P8a:** no TCP-flag wildcard and no link wildcard, on every role.
+- **P8b:** no address wildcard on the end hosts. **Expected FAIL at the hub:** the (inbound,
+  ICMPv6) source wildcard should remain, because the relative law does not separate rare
+  identities from throwaway ports.
+
+That open question goes to Jesse: should a neighbour-discovery sender fold, or stay exact?
