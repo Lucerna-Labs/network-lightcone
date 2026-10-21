@@ -9,7 +9,7 @@ use path_sense::{sense, Path, Sym, F_DIR, F_DPORT, F_DST, F_L4, F_SPORT, F_SRC, 
 use path_world::{CtxFold, World};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-const FOLD: CtxFold = CtxFold { min_distinct: 3, ephemeral_fraction: 0.8, ephemeral_below: 3, relative_to_field: true };
+const FOLD: CtxFold = CtxFold { min_distinct: 3, ephemeral_fraction: 0.8 };
 const TRAIN_ATTEMPTS: u32 = 6;
 const ROLES: [&str; 3] = ["hub", "source", "receiver"];
 const UNTRAINED_SERVICE_PROBE: u128 = 41000;
@@ -153,7 +153,7 @@ fn main() {
         let train_paths: Vec<Path> = train_exp.iter().map(|x| x.0.clone()).collect();
         let held_paths: Vec<Option<Path>> = held.iter().map(|r| sense(&r.frame, r.outbound)).collect();
         let allow = World::train_context(&train_paths, FOLD);
-        let strict = World::train(&train_paths, None);
+        let strict = World::train(&train_paths);
         let mut folded: BTreeMap<u8, usize> = BTreeMap::new();
         for (f, n) in allow.folded_fields() {
             *folded.entry(origin(f)).or_default() += n;
@@ -213,7 +213,7 @@ fn main() {
         p4 &= held_paths.iter().all(|p| !pass(&World::default(), &empty, p.as_ref()));
         p4 &= held.iter().filter(|r| r.frame.len() > 30).all(|r| !pass(&allow, &empty, sense(&r.frame[..30], r.outbound).as_ref()));
         let deny_train: Vec<Path> = raw_train.iter().filter_map(|(p, _)| mutations(p, &allow, untrained_port, end_host)[0].as_ref().map(expand)).collect();
-        let deny = World::train(&deny_train, None);
+        let deny = World::train(&deny_train);
         let harmed = held_paths.iter().flatten().map(expand).filter(|e| allow.matches(e) && deny.matches(e)).count();
         let held_a: Vec<Path> = held_paths.iter().flatten().filter_map(|p| mutations(p, &allow, untrained_port, end_host)[0].as_ref().map(expand)).collect();
         let deny_catches = held_a.iter().filter(|m| deny.matches(m)).count();

@@ -21,9 +21,9 @@ mod tests {
     #[test]
     fn deny_overrides_allow_and_no_path_never_passes() {
         let a: Path = vec![Sym { field: 0, value: 1 }];
-        let allow = World::train(&[a.clone()], None);
+        let allow = World::train(&[a.clone()]);
         assert!(admit(&allow, &World::default(), Some(&a)));
-        assert!(!admit(&allow, &World::train(&[a.clone()], None), Some(&a)));
+        assert!(!admit(&allow, &World::train(&[a.clone()]), Some(&a)));
         assert!(!admit(&allow, &World::default(), None));
     }
 }

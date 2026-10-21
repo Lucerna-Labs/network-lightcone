@@ -1,22 +1,22 @@
 //! PATHCONE (path-lightcone/PATHCONE-1-PRECOMMIT.md): the world. A trie of the paths seen in
-//! training — "only paths trained can pass" (Jesse). **Learned folding** (the FOLD concept): after
-//! training, a trie position whose values are volatile (at least `min_distinct` distinct values,
-//! none holding more than `max_share` of the visits) folds into a wildcard, so the data itself
-//! generalises ephemeral ports and similar; no value is ever written by hand. Matching walks exact
-//! children first, then the wildcard, with backtracking; a path matches only at a trained terminal.
-//! The fold rule is the caller's (the orchestrator's setting).
+//! training — "only paths trained can pass" (Jesse). A position may become a wildcard only by
+//! **context folding** (run 6, the law that held): a value is *ephemeral* when it follows fewer than
+//! min(min_distinct, the number of contexts its field occurs in) distinct raw training prefixes —
+//! the continuation count of linguistics (Kneser–Ney) — and a node folds when at least
+//! `min_distinct` of its exact children are present and at least `ephemeral_fraction` of them are
+//! ephemeral, shallowest first. No value is ever written by hand; the settings are the
+//! orchestrator's. Matching walks exact children first, then the wildcard, with backtracking; a
+//! path matches only at a trained terminal.
+//!
+//! The laws that failed (volatility, time recurrence, top-down recurrence, nibble prefixes, context
+//! == 1, context < 3) were removed in the cleanup of 2026-10-21; their code and results are at
+//! commit 2641345 and in the precommit doc.
 
 use path_sense::{Path, Sym};
 use std::collections::{HashMap, HashSet};
 
 /// The wildcard value a folded position takes.
 pub const WILD: u128 = u128::MAX;
-
-#[derive(Clone, Copy, Debug)]
-pub struct Fold {
-    pub min_distinct: usize,
-    pub max_share: f64,
-}
 
 #[derive(Default, Clone, Debug)]
 struct Node {
@@ -61,40 +61,10 @@ fn build(paths: &[Path]) -> (Vec<Node>, Vec<Vec<usize>>) {
 }
 
 impl World {
-    /// Train from paths, folding volatile positions until none remain (if a rule is given).
-    pub fn train(paths: &[Path], fold: Option<Fold>) -> World {
-        let mut ps: Vec<Path> = paths.to_vec();
-        let seen: HashSet<Sym> = paths.iter().flatten().copied().collect();
-        let mut folds = 0;
-        loop {
-            let (nodes, trail) = build(&ps);
-            let Some(rule) = fold else {
-                return World { nodes, seen, folds };
-            };
-            // A node folds when its non-wild children are volatile.
-            let mut fold_at: HashSet<usize> = HashSet::new();
-            for (id, n) in nodes.iter().enumerate() {
-                let kids: Vec<(&Sym, &usize)> = n.children.iter().filter(|(s, _)| s.value != WILD).collect();
-                if kids.len() >= rule.min_distinct {
-                    let total: u64 = kids.iter().map(|(_, &c)| nodes[c].visits).sum();
-                    let top = kids.iter().map(|(_, &c)| nodes[c].visits).max().unwrap_or(0);
-                    if (top as f64) <= rule.max_share * total as f64 {
-                        fold_at.insert(id);
-                    }
-                }
-            }
-            if fold_at.is_empty() {
-                return World { nodes, seen, folds };
-            }
-            folds += fold_at.len();
-            for (i, p) in ps.iter_mut().enumerate() {
-                for (d, s) in p.iter_mut().enumerate() {
-                    if fold_at.contains(&trail[i][d]) {
-                        s.value = WILD;
-                    }
-                }
-            }
-        }
+    /// The strict world: exactly the trained paths, no folding (the deny world, and the control).
+    pub fn train(paths: &[Path]) -> World {
+        let (nodes, _) = build(paths);
+        World { nodes, seen: paths.iter().flatten().copied().collect(), folds: 0 }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -127,20 +97,13 @@ impl World {
 mod tests {
     use super::*;
 
-    fn p(v: &[(u8, u128)]) -> Path {
-        v.iter().map(|&(f, x)| Sym { field: f, value: x }).collect()
-    }
-
     #[test]
-    fn exact_paths_and_learned_folding() {
-        // Five flows to service port 53 from five different ephemeral ports.
+    fn strict_world_matches_only_trained_paths() {
+        let p = |v: &[(u8, u128)]| -> Path { v.iter().map(|&(f, x)| Sym { field: f, value: x }).collect() };
         let train: Vec<Path> = (0..5).map(|k| p(&[(0, 1), (5, 40000 + k), (6, 53)])).collect();
-        let strict = World::train(&train, None);
+        let strict = World::train(&train);
         assert!(strict.matches(&train[2]) && !strict.matches(&p(&[(0, 1), (5, 41234), (6, 53)])));
-        let folded = World::train(&train, Some(Fold { min_distinct: 3, max_share: 0.5 }));
-        assert!(folded.matches(&p(&[(0, 1), (5, 41234), (6, 53)])), "the ephemeral source port is learned as volatile");
-        assert!(!folded.matches(&p(&[(0, 1), (5, 41234), (6, 54)])), "the service port is not folded");
-        assert!(!World::train(&[], None).matches(&train[0]));
+        assert!(!World::train(&[]).matches(&train[0]));
     }
 }
 
@@ -159,58 +122,7 @@ impl World {
     }
 }
 
-/// PATHCONE-1 run 2: recurrence folding. A position folds only when its values are mostly
-/// **one-burst** — each seen within a single time window and never again — so recurring structure
-/// (services, peers, flag sets) stays exact and only genuinely ephemeral values generalise.
-#[derive(Clone, Copy, Debug)]
-pub struct RecurFold {
-    pub min_distinct: usize,
-    pub one_burst_fraction: f64,
-    pub window_ns: u64,
-}
-
 impl World {
-    /// Train from (path, capture time) pairs with recurrence folding.
-    pub fn train_timed(paths: &[(Path, u64)], fold: RecurFold) -> World {
-        let mut ps: Vec<Path> = paths.iter().map(|x| x.0.clone()).collect();
-        let times: Vec<u64> = paths.iter().map(|x| x.1).collect();
-        let seen: HashSet<Sym> = ps.iter().flatten().copied().collect();
-        let mut folds = 0;
-        loop {
-            let (nodes, trail) = build(&ps);
-            // First and last sighting of each child (node, symbol), from the paths through it.
-            let mut span: HashMap<(usize, Sym), (u64, u64)> = HashMap::new();
-            for (i, p) in ps.iter().enumerate() {
-                for (d, s) in p.iter().enumerate() {
-                    let e = span.entry((trail[i][d], *s)).or_insert((u64::MAX, 0));
-                    e.0 = e.0.min(times[i]);
-                    e.1 = e.1.max(times[i]);
-                }
-            }
-            let mut fold_at: HashSet<usize> = HashSet::new();
-            for (id, n) in nodes.iter().enumerate() {
-                let kids: Vec<&Sym> = n.children.keys().filter(|s| s.value != WILD).collect();
-                if kids.len() >= fold.min_distinct {
-                    let burst = kids.iter().filter(|s| { let (a, b) = span[&(id, ***s)]; b - a <= fold.window_ns }).count();
-                    if burst as f64 >= fold.one_burst_fraction * kids.len() as f64 {
-                        fold_at.insert(id);
-                    }
-                }
-            }
-            if fold_at.is_empty() {
-                return World { nodes, seen, folds };
-            }
-            folds += fold_at.len();
-            for (i, p) in ps.iter_mut().enumerate() {
-                for (d, s) in p.iter_mut().enumerate() {
-                    if fold_at.contains(&trail[i][d]) {
-                        s.value = WILD;
-                    }
-                }
-            }
-        }
-    }
-
     fn walk_trace(&self, n: usize, p: &[Sym], trace: &mut Vec<bool>) -> bool {
         let Some((s, rest)) = p.split_first() else {
             return self.nodes[n].terminal;
@@ -240,97 +152,6 @@ impl World {
     }
 }
 
-#[cfg(test)]
-mod recur_tests {
-    use super::*;
-
-    #[test]
-    fn recurring_values_stay_exact_one_burst_values_fold() {
-        let p = |a: u128, b: u128| vec![Sym { field: 5, value: a }, Sym { field: 6, value: b }];
-        // Three services (6, recurring over time) from one-burst ephemeral ports (5).
-        let mut train = Vec::new();
-        for k in 0..30u64 {
-            train.push((p(40000 + k as u128, 5201 + (k % 3) as u128), k * 10_000_000_000));
-        }
-        let w = World::train_timed(&train, RecurFold { min_distinct: 3, one_burst_fraction: 0.8, window_ns: 1_000_000_000 });
-        assert!(w.matches(&p(49999, 5202)), "any ephemeral source port");
-        assert!(!w.matches(&p(49999, 5204)), "the services stay exact");
-        assert_eq!(w.match_trace(&p(49999, 5202)).unwrap(), vec![false, true]);
-    }
-}
-
-impl World {
-    /// PATHCONE-1 run 3: **top-down** recurrence folding. The rule is run 2's, but each pass folds
-    /// only the eligible positions at the shallowest eligible depth, then rebuilds, so branches that
-    /// merge after a shallow fold are judged together (a flag set recurs across merged flows and
-    /// stays exact). Repeats until nothing is eligible.
-    pub fn train_topdown(paths: &[(Path, u64)], fold: RecurFold) -> World {
-        let mut ps: Vec<Path> = paths.iter().map(|x| x.0.clone()).collect();
-        let times: Vec<u64> = paths.iter().map(|x| x.1).collect();
-        let seen: HashSet<Sym> = ps.iter().flatten().copied().collect();
-        let mut folds = 0;
-        loop {
-            let (nodes, trail) = build(&ps);
-            let mut span: HashMap<(usize, Sym), (u64, u64)> = HashMap::new();
-            let mut depth: HashMap<usize, usize> = HashMap::new();
-            for (i, p) in ps.iter().enumerate() {
-                for (d, s) in p.iter().enumerate() {
-                    let e = span.entry((trail[i][d], *s)).or_insert((u64::MAX, 0));
-                    e.0 = e.0.min(times[i]);
-                    e.1 = e.1.max(times[i]);
-                    depth.insert(trail[i][d], d);
-                }
-            }
-            let mut eligible: Vec<(usize, usize)> = Vec::new();
-            for (id, n) in nodes.iter().enumerate() {
-                let kids: Vec<&Sym> = n.children.keys().filter(|s| s.value != WILD).collect();
-                if kids.len() >= fold.min_distinct {
-                    let burst = kids.iter().filter(|s| { let (a, b) = span[&(id, ***s)]; b - a <= fold.window_ns }).count();
-                    if burst as f64 >= fold.one_burst_fraction * kids.len() as f64 {
-                        eligible.push((id, depth[&id]));
-                    }
-                }
-            }
-            let Some(shallowest) = eligible.iter().map(|e| e.1).min() else {
-                return World { nodes, seen, folds };
-            };
-            let fold_at: HashSet<usize> = eligible.iter().filter(|e| e.1 == shallowest).map(|e| e.0).collect();
-            folds += fold_at.len();
-            for (i, p) in ps.iter_mut().enumerate() {
-                for (d, s) in p.iter_mut().enumerate() {
-                    if fold_at.contains(&trail[i][d]) {
-                        s.value = WILD;
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[cfg(test)]
-mod topdown_tests {
-    use super::*;
-
-    #[test]
-    fn flags_recur_across_merged_flows() {
-        // Ten flows to one service, each from a one-burst ephemeral port, each with the same three
-        // flag sets inside its burst. Per flow the flags look one-burst; across merged flows they recur.
-        let p = |sp: u128, f: u128| vec![Sym { field: 5, value: sp }, Sym { field: 7, value: f }];
-        let mut train = Vec::new();
-        for k in 0..10u64 {
-            for (j, f) in [2u128, 18, 16].iter().enumerate() {
-                train.push((p(40000 + k as u128, *f), k * 10_000_000_000 + j as u64));
-            }
-        }
-        let rule = RecurFold { min_distinct: 3, one_burst_fraction: 0.8, window_ns: 1_000_000_000 };
-        let all_at_once = World::train_timed(&train, rule);
-        assert!(all_at_once.folded_fields().contains_key(&7), "run 2's bug: flags fold under each flow");
-        let td = World::train_topdown(&train, rule);
-        assert!(!td.folded_fields().contains_key(&7), "top-down: the flags stay exact");
-        assert!(td.matches(&p(49999, 18)) && !td.matches(&p(49999, 1)));
-    }
-}
-
 impl World {
     /// Diagnostic: the trained prefix leading to every wildcard of `field`, with how many exact
     /// siblings sit beside the wildcard.
@@ -352,19 +173,11 @@ impl World {
     }
 }
 
-/// PATHCONE-1 run 4: context folding. Borrowed law: the *continuation count* of linguistics
-/// (Kneser–Ney) — a value that follows many different contexts is part of the language; a value
-/// that follows few is incidental. A value is ephemeral when its context count is below
-/// `ephemeral_below` (run 4: 2, "exactly one"; run 5: min_distinct). A node folds when at least
-/// `min_distinct` of its exact children are present and at least `ephemeral_fraction` are ephemeral.
+/// Context folding (run 6). See the crate doc.
 #[derive(Clone, Copy, Debug)]
 pub struct CtxFold {
     pub min_distinct: usize,
     pub ephemeral_fraction: f64,
-    pub ephemeral_below: usize,
-    /// Run 6: measure "few" against the contexts the field occurs in at all (a value following
-    /// every context of its field is universal, never ephemeral).
-    pub relative_to_field: bool,
 }
 
 impl World {
@@ -383,7 +196,7 @@ impl World {
         for (s, h) in &parents {
             field_parents.entry(s.field).or_default().extend(h.iter().copied());
         }
-        let below = |s: &Sym| if fold.relative_to_field { fold.ephemeral_below.min(field_parents[&s.field].len()) } else { fold.ephemeral_below };
+        let below = |s: &Sym| fold.min_distinct.min(field_parents[&s.field].len());
         let ctx: HashMap<Sym, usize> = parents.into_iter().map(|(s, h)| (s, h.len())).collect();
         let mut ps: Vec<Path> = paths.to_vec();
         let mut folds = 0;
@@ -427,20 +240,22 @@ mod context_tests {
 
     #[test]
     fn ephemeral_ports_fold_flags_and_services_stay() {
-        // Ten flows, all within one millisecond (no time signal): ephemeral port (5), service (6), flags (7).
-        let p = |sp: u128, svc: u128, f: u128| vec![Sym { field: 5, value: sp }, Sym { field: 6, value: svc }, Sym { field: 7, value: f }];
+        // Ten flows from three hosts (3), all within one millisecond (no time signal): ephemeral
+        // port (5), service (6), flags (7).
+        let p = |h: u128, sp: u128, svc: u128, f: u128| vec![Sym { field: 3, value: h }, Sym { field: 5, value: sp }, Sym { field: 6, value: svc }, Sym { field: 7, value: f }];
         let mut train = Vec::new();
         for k in 0..10u128 {
             for f in [2u128, 18, 16] {
-                train.push(p(40000 + k, 46000 + k % 2, f));
+                train.push(p(k % 3, 40000 + k, 46000 + k % 2, f));
             }
         }
-        let w = World::train_context(&train, CtxFold { min_distinct: 3, ephemeral_fraction: 0.8, ephemeral_below: 2, relative_to_field: false });
+        let w = World::train_context(&train, CtxFold { min_distinct: 3, ephemeral_fraction: 0.8 });
         let ff = w.folded_fields();
-        assert!(ff.contains_key(&5) && !ff.contains_key(&6) && !ff.contains_key(&7), "{ff:?}");
-        assert!(w.matches(&p(49999, 46001, 18)));
-        assert!(!w.matches(&p(49999, 46002, 18)) && !w.matches(&p(49999, 46000, 1)));
+        assert!(ff.contains_key(&5) && !ff.contains_key(&3) && !ff.contains_key(&6) && !ff.contains_key(&7), "{ff:?}");
+        assert!(w.matches(&p(1, 49999, 46001, 18)));
+        assert!(!w.matches(&p(1, 49999, 46002, 18)) && !w.matches(&p(1, 49999, 46000, 1)) && !w.matches(&p(7, 49999, 46000, 18)));
     }
+
 }
 
 #[cfg(test)]
@@ -459,9 +274,7 @@ mod relative_tests {
                 }
             }
         }
-        let abs = World::train_context(&train, CtxFold { min_distinct: 3, ephemeral_fraction: 0.8, ephemeral_below: 3, relative_to_field: false });
-        assert!(abs.folded_fields().contains_key(&1), "run 5's over-fold");
-        let rel = World::train_context(&train, CtxFold { min_distinct: 3, ephemeral_fraction: 0.8, ephemeral_below: 3, relative_to_field: true });
+        let rel = World::train_context(&train, CtxFold { min_distinct: 3, ephemeral_fraction: 0.8 });
         assert!(!rel.folded_fields().contains_key(&1) && rel.folded_fields().contains_key(&5));
     }
 }

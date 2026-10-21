@@ -118,13 +118,6 @@ name = "path-inject"
 version = "0.1.0"
 
 [[package]]
-name = "path-nibble"
-version = "0.1.0"
-dependencies = [
- "path-sense",
-]
-
-[[package]]
 name = "path-queue"
 version = "0.1.0"
 
@@ -137,52 +130,6 @@ name = "path-world"
 version = "0.1.0"
 dependencies = [
  "path-sense",
-]
-
-[[package]]
-name = "pathcone1"
-version = "0.1.0"
-dependencies = [
- "path-admit",
- "path-sense",
- "path-world",
-]
-
-[[package]]
-name = "pathcone2"
-version = "0.1.0"
-dependencies = [
- "path-admit",
- "path-sense",
- "path-world",
-]
-
-[[package]]
-name = "pathcone3"
-version = "0.1.0"
-dependencies = [
- "path-admit",
- "path-nibble",
- "path-sense",
- "path-world",
-]
-
-[[package]]
-name = "pathcone4"
-version = "0.1.0"
-dependencies = [
- "path-admit",
- "path-sense",
- "path-world",
-]
-
-[[package]]
-name = "pathcone5"
-version = "0.1.0"
-dependencies = [
- "path-admit",
- "path-sense",
- "path-world",
 ]
 
 [[package]]

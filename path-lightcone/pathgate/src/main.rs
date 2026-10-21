@@ -20,7 +20,7 @@ use path_world::{CtxFold, World};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-const FOLD: CtxFold = CtxFold { min_distinct: 3, ephemeral_fraction: 0.8, ephemeral_below: 3, relative_to_field: true };
+const FOLD: CtxFold = CtxFold { min_distinct: 3, ephemeral_fraction: 0.8 };
 const TRAIN_ATTEMPTS: u32 = 6;
 const QUEUE_CAPACITY: u32 = 1024;
 const SEND_GAP: Duration = Duration::from_micros(300);
@@ -109,7 +109,7 @@ fn train(ev: &str, role: &str) -> (Worlds, Vec<Rec>) {
     let untrained_port = (40000u128..).find(|v| !seen.contains(&Sym { field: F_DPORT, value: *v }) && !seen.contains(&Sym { field: F_SPORT, value: *v })).unwrap();
     let allow = World::train_context(&train_paths, FOLD);
     let deny_train: Vec<Path> = train_paths.iter().filter_map(|p| port_mutation(p, &allow, untrained_port)).collect();
-    let deny = World::train(&deny_train, None);
+    let deny = World::train(&deny_train);
     (Worlds { allow, deny, untrained_port }, held)
 }
 

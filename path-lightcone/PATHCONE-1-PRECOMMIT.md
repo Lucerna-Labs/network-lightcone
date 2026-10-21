@@ -392,3 +392,20 @@ designed.** Learning them needs more training arms (more restarts), not a looser
 
 **Next:** rung 2. Put `path-admit` in the packet path as a fail-closed verdict in the namespace lab,
 then the VM matrix.
+
+## Cleanup (2026-10-21)
+
+**Removed** (the laws that were wrong): `pathcone1`–`pathcone5`, `path-nibble`, and `path-world`'s
+volatility, time-recurrence and top-down-recurrence trainers. The run-4/5 variants of the context
+law were removed too.
+- `path-world` now holds only the strict trie and run 6's context folding.
+- `CtxFold` is now `{ min_distinct, ephemeral_fraction }`: ephemeral means below min(min_distinct,
+  the field's context count).
+- **To rerun a removed run:** `git checkout 2641345`.
+
+The results and evidence of every run stay in this doc and `evidence/`.
+
+**Checked after the cleanup:**
+- `pathcone6` reproduces run 6 exactly (speed aside);
+- the PATHGATE-2 lab reproduces every count (timings aside);
+- the workspace tests pass.
