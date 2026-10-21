@@ -1,0 +1,77 @@
+== hub in no-gate (SENT 327 REFUSED 0)
+pos: n 327, kernel passed 0 (0.0000), agreement with offline verdict 15/327
+== hub in gate (SENT 1249 REFUSED 0)
+neg-address: n 312, kernel passed 0 (0.0000), agreement with offline verdict 312/312
+neg-port: n 305, kernel passed 0 (0.0000), agreement with offline verdict 305/305
+neg-protocol: n 305, kernel passed 0 (0.0000), agreement with offline verdict 305/305
+pos: n 327, kernel passed 312 (0.9541), agreement with offline verdict 327/327
+gate verdicts 1249; latency median 26550 ns, p99 61541 ns
+== hub in gate-exit (SENT 327 REFUSED 0)
+pos: n 327, kernel passed 0 (0.0000), agreement with offline verdict 15/327
+== hub in baseline (SENT 327 REFUSED 0)
+pos: n 327, kernel passed 327 (1.0000), agreement with offline verdict 312/327
+== hub out no-gate (SENT 354 REFUSED 0)
+pos: n 354, kernel passed 0 (0.0000), agreement with offline verdict 6/354
+== hub out gate (SENT 1352 REFUSED 0)
+neg-address: n 348, kernel passed 0 (0.0000), agreement with offline verdict 348/348
+neg-port: n 325, kernel passed 0 (0.0000), agreement with offline verdict 325/325
+neg-protocol: n 325, kernel passed 0 (0.0000), agreement with offline verdict 325/325
+pos: n 354, kernel passed 348 (0.9831), agreement with offline verdict 354/354
+gate verdicts 1400; latency median 26074 ns, p99 89284 ns
+== hub out gate-exit (SENT 354 REFUSED 0)
+pos: n 354, kernel passed 0 (0.0000), agreement with offline verdict 6/354
+gate verdicts 4; latency median 69530 ns, p99 84336 ns
+== hub out baseline (SENT 354 REFUSED 0)
+pos: n 354, kernel passed 354 (1.0000), agreement with offline verdict 348/354
+== source in no-gate (SENT 172 REFUSED 0)
+pos: n 172, kernel passed 0 (0.0000), agreement with offline verdict 1/172
+== source in gate (SENT 665 REFUSED 0)
+neg-address: n 171, kernel passed 0 (0.0000), agreement with offline verdict 171/171
+neg-port: n 161, kernel passed 0 (0.0000), agreement with offline verdict 161/161
+neg-protocol: n 161, kernel passed 0 (0.0000), agreement with offline verdict 161/161
+pos: n 172, kernel passed 171 (0.9942), agreement with offline verdict 172/172
+gate verdicts 665; latency median 18891 ns, p99 56490 ns
+== source in gate-exit (SENT 172 REFUSED 0)
+pos: n 172, kernel passed 0 (0.0000), agreement with offline verdict 1/172
+gate verdicts 4; latency median 51268 ns, p99 57074 ns
+== source in baseline (SENT 172 REFUSED 0)
+pos: n 172, kernel passed 172 (1.0000), agreement with offline verdict 171/172
+== source out no-gate (SENT 165 REFUSED 0)
+pos: n 165, kernel passed 0 (0.0000), agreement with offline verdict 8/165
+== source out gate (SENT 630 REFUSED 0)
+neg-address: n 157, kernel passed 0 (0.0000), agreement with offline verdict 157/157
+neg-port: n 154, kernel passed 0 (0.0000), agreement with offline verdict 154/154
+neg-protocol: n 154, kernel passed 0 (0.0000), agreement with offline verdict 154/154
+pos: n 165, kernel passed 157 (0.9515), agreement with offline verdict 165/165
+gate verdicts 632; latency median 16157 ns, p99 52463 ns
+== source out gate-exit (SENT 165 REFUSED 0)
+pos: n 165, kernel passed 0 (0.0000), agreement with offline verdict 8/165
+gate verdicts 2; latency median 47560 ns, p99 47560 ns
+== source out baseline (SENT 165 REFUSED 0)
+pos: n 165, kernel passed 165 (1.0000), agreement with offline verdict 157/165
+== receiver in no-gate (SENT 176 REFUSED 0)
+pos: n 176, kernel passed 0 (0.0000), agreement with offline verdict 1/176
+== receiver in gate (SENT 679 REFUSED 0)
+neg-address: n 175, kernel passed 0 (0.0000), agreement with offline verdict 175/175
+neg-port: n 164, kernel passed 0 (0.0000), agreement with offline verdict 164/164
+neg-protocol: n 164, kernel passed 0 (0.0000), agreement with offline verdict 164/164
+pos: n 176, kernel passed 175 (0.9943), agreement with offline verdict 176/176
+gate verdicts 679; latency median 15585 ns, p99 62963 ns
+== receiver in gate-exit (SENT 176 REFUSED 0)
+pos: n 176, kernel passed 0 (0.0000), agreement with offline verdict 1/176
+gate verdicts 5; latency median 33506 ns, p99 48903 ns
+== receiver in baseline (SENT 176 REFUSED 0)
+pos: n 176, kernel passed 176 (1.0000), agreement with offline verdict 175/176
+== receiver out no-gate (SENT 163 REFUSED 0)
+pos: n 163, kernel passed 0 (0.0000), agreement with offline verdict 7/163
+== receiver out gate (SENT 621 REFUSED 0)
+neg-address: n 156, kernel passed 0 (0.0000), agreement with offline verdict 156/156
+neg-port: n 151, kernel passed 0 (0.0000), agreement with offline verdict 151/151
+neg-protocol: n 151, kernel passed 0 (0.0000), agreement with offline verdict 151/151
+pos: n 163, kernel passed 156 (0.9571), agreement with offline verdict 163/163
+gate verdicts 636; latency median 28163 ns, p99 76315 ns
+== receiver out gate-exit (SENT 163 REFUSED 0)
+pos: n 163, kernel passed 0 (0.0000), agreement with offline verdict 7/163
+gate verdicts 4; latency median 37534 ns, p99 47548 ns
+== receiver out baseline (SENT 163 REFUSED 0)
+pos: n 163, kernel passed 163 (1.0000), agreement with offline verdict 156/163

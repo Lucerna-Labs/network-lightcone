@@ -141,3 +141,37 @@ packet.
 
 A positive the raw socket cannot send (the kernel refuses it) is counted and reported, not
 dropped silently.
+
+## PATHGATE-2 results (2026-10-21, `evidence/pathgate-2/`): all hold, every role and direction
+
+**Command:** `unshare -Urn sh scripts/pathgate2-lab.sh <pathgate> <imperium evidence> evidence/pathgate-2`.
+The raw sender refused 0 packets.
+
+| role, direction | positives passed (gate) | mutations passed (port / address / protocol) | kernel = offline | no reader / reader exited | baseline | median / p99 verdict |
+|---|---|---|---|---|---|---|
+| hub, in | 312/327 **0.9541** | 0/305 · 0/312 · 0/305 | 1249/1249 | 0 / 0 | 327/327 | 26.6 / 61.5 µs |
+| hub, out | 348/354 **0.9831** | 0/325 · 0/348 · 0/325 | 1352/1352 | 0 / 0 | 354/354 | 26.1 / 89.3 µs |
+| source, in | 171/172 **0.9942** | 0/161 · 0/171 · 0/161 | 665/665 | 0 / 0 | 172/172 | 18.9 / 56.5 µs |
+| source, out | 157/165 **0.9515** | 0/154 · 0/157 · 0/154 | 630/630 | 0 / 0 | 165/165 | 16.2 / 52.5 µs |
+| receiver, in | 175/176 **0.9943** | 0/164 · 0/175 · 0/164 | 679/679 | 0 / 0 | 176/176 | 15.6 / 63.0 µs |
+| receiver, out | 156/163 **0.9571** | 0/151 · 0/156 · 0/151 | 621/621 | 0 / 0 | 163/163 | 28.2 / 76.3 µs |
+
+**Every prediction holds:**
+- **G1:** the kernel outcome equals the offline verdict on **5196 of 5196** frames.
+- **G2:** positives pass at ≥ 0.94 everywhere (0.9515–0.9943).
+- **G3:** **0 of 2984 mutated packets passed.**
+- **G4:** fail-closed in all 12 fail-closed tests.
+- **G5:** the baseline passes everything, so the injection path itself works.
+- **G6:** the medians are 15.6–28.2 µs.
+
+The extra gate verdicts in some phases come from the namespace's own IPv6 autoconfiguration
+packets. They are untrained, so they were discarded.
+
+**The positives the gate drops** are the packets the run-6 world drops offline: one-example paths,
+and the new tunnel interface IDs' MLD/RS packets (see PATHCONE-1 run 6).
+
+**Still outside this lab:**
+- live connections (checksum offload, GSO), real TUN and mesh passage;
+- L2/ARP.
+
+That is the VM matrix's job. Imperium keeps `filter_enforced=false` until it passes.

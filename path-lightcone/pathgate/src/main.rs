@@ -4,14 +4,16 @@
 //! PATHGATE_LAB=1. Every setting is here.
 //!
 //! Modes:
-//!   gate EVIDENCE QUEUE SECONDS      hold each packet, judge it, release or discard ("V hash pass ns")
+//!   gate EVIDENCE ROLE QUEUE SECONDS hold each packet, judge it, release or discard ("V hash pass ns")
 //!   observe QUEUE SECONDS            release every packet, record it ("O hash"): the passage receipt
-//!   inject EVIDENCE IFACE DSTMAC SRCMAC pos|all MANIFEST   replay recorded frames (+ mutations)
+//!   inject EVIDENCE ROLE in|out IFACE DSTMAC SRCMAC pos|all MANIFEST   replay recorded packets
+//!                                    (+ mutations): in = Ethernet frames onto the veth (PREROUTING),
+//!                                    out = header-included raw IP sends (OUTPUT)
 //!   report MANIFEST OBSERVED GATELOG compare kernel outcome with the offline verdict
 
 use path_admit::admit;
 use path_frame::held_path;
-use path_inject::Injector;
+use path_inject::{Injector, RawIp};
 use path_queue::{KernelDisposition, PacketQueue};
 use path_sense::{sense, Path, Sym, F_DPORT, F_DST, F_SPORT, F_SRC};
 use path_world::{CtxFold, World};
@@ -20,7 +22,6 @@ use std::time::{Duration, Instant};
 
 const FOLD: CtxFold = CtxFold { min_distinct: 3, ephemeral_fraction: 0.8, ephemeral_below: 3, relative_to_field: true };
 const TRAIN_ATTEMPTS: u32 = 6;
-const ROLE: &str = "receiver";
 const QUEUE_CAPACITY: u32 = 1024;
 const SEND_GAP: Duration = Duration::from_micros(300);
 
@@ -63,8 +64,11 @@ fn read_jsonl(path: &str) -> Vec<Rec> {
         .collect()
 }
 
+/// Packet identity: FNV-1a over the bytes, with the IPv4 ID and header checksum skipped (the kernel
+/// may fill both in for a header-included send).
 fn fnv(b: &[u8]) -> u64 {
-    b.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, &x| (h ^ x as u64).wrapping_mul(0x100_0000_01b3))
+    let v4 = b.first().map(|x| x >> 4) == Some(4);
+    b.iter().enumerate().filter(|(i, _)| !(v4 && matches!(i, 4 | 5 | 10 | 11))).fold(0xcbf2_9ce4_8422_2325u64, |h, (_, &x)| (h ^ x as u64).wrapping_mul(0x100_0000_01b3))
 }
 
 fn get(p: &Path, f: u8) -> Option<(usize, u128)> {
@@ -84,9 +88,9 @@ fn set_at(p: &Path, i: usize, v: u128) -> Path {
     q
 }
 
-fn train(ev: &str) -> (Worlds, Vec<Rec>) {
+fn train(ev: &str, role: &str) -> (Worlds, Vec<Rec>) {
     let io = format!("{ev}/lightcone-vm-io-20261001");
-    let healthy = read_jsonl(&format!("{io}/healthy-{ROLE}-packets.jsonl"));
+    let healthy = read_jsonl(&format!("{io}/healthy-{role}-packets.jsonl"));
     let mut held = Vec::new();
     let mut train_paths = Vec::new();
     for r in healthy {
@@ -99,7 +103,7 @@ fn train(ev: &str) -> (Worlds, Vec<Rec>) {
         }
     }
     for arm in ["quarantined", "kernel_recovered"] {
-        held.extend(read_jsonl(&format!("{io}/{arm}-{ROLE}-packets.jsonl")));
+        held.extend(read_jsonl(&format!("{io}/{arm}-{role}-packets.jsonl")));
     }
     let seen: std::collections::HashSet<Sym> = train_paths.iter().flatten().copied().collect();
     let untrained_port = (40000u128..).find(|v| !seen.contains(&Sym { field: F_DPORT, value: *v }) && !seen.contains(&Sym { field: F_SPORT, value: *v })).unwrap();
@@ -130,8 +134,8 @@ fn ipv4_checksum(ip: &mut [u8]) {
 }
 
 /// Byte-level mutations of a bare IP packet, mirroring PATHCONE-1 run 3's exact-field classes.
-fn mutate(ip: &[u8], w: &Worlds, class: usize) -> Option<Vec<u8>> {
-    let p = held_path(ip, 0)?;
+fn mutate(ip: &[u8], w: &Worlds, class: usize, hook: u8) -> Option<Vec<u8>> {
+    let p = held_path(ip, hook)?;
     let v4 = ip[0] >> 4 == 4;
     let (l4, proto_at) = if v4 { ((ip[0] & 0x0f) as usize * 4, 9) } else { (40, 6) };
     let proto = ip[proto_at];
@@ -196,10 +200,10 @@ fn main() {
     match a.get(1).map(|s| s.as_str()) {
         Some("gate") => {
             lab_only();
-            let (w, _) = train(&a[2]);
-            let mut q = PacketQueue::bind(a[3].parse().unwrap(), QUEUE_CAPACITY).expect("bind gate queue");
+            let (w, _) = train(&a[2], &a[3]);
+            let mut q = PacketQueue::bind(a[4].parse().unwrap(), QUEUE_CAPACITY).expect("bind gate queue");
             println!("READY");
-            let deadline = Instant::now() + Duration::from_secs(a[4].parse().unwrap());
+            let deadline = Instant::now() + Duration::from_secs(a[5].parse().unwrap());
             while Instant::now() < deadline {
                 // Any transport error ends the reader: the kernel then drops everything held (fail-closed).
                 let Some(pk) = q.receive(Duration::from_millis(50)).expect("receive") else { continue };
@@ -226,14 +230,18 @@ fn main() {
             println!("FINISHED");
         }
         Some("inject") => {
+            // inject EVIDENCE ROLE in|out IFACE DSTMAC SRCMAC pos|all MANIFEST
             lab_only();
-            let (w, held) = train(&a[2]);
-            let inj = Injector::open(&a[3]).expect("open injector");
-            let (dst, src) = (mac(&a[4]), mac(&a[5]));
-            let all = a[6] == "all";
+            let (w, held) = train(&a[2], &a[3]);
+            let outbound = a[4] == "out";
+            let hook = if outbound { 3 } else { 0 };
+            let link = if outbound { None } else { Some(Injector::open(&a[5]).expect("open injector")) };
+            let raw = if outbound { Some(RawIp::open(&a[5]).expect("open raw sender")) } else { None };
+            let (dst, src) = (mac(&a[6]), mac(&a[7]));
+            let all = a[8] == "all";
             let mut manifest = String::new();
-            let mut sent = 0;
-            for r in held.iter().filter(|r| !r.outbound && r.interface != "lo" && !r.truncated && r.frame.len() > 20) {
+            let (mut sent, mut refused) = (0, 0);
+            for r in held.iter().filter(|r| r.outbound == outbound && r.interface != "lo" && !r.truncated && r.frame.len() > 20) {
                 let ether = [r.frame[0], r.frame[1]];
                 if ether != [0x08, 0x00] && ether != [0x86, 0xdd] {
                     continue;
@@ -242,25 +250,39 @@ fn main() {
                 let mut items = vec![("pos", ip.to_vec())];
                 if all {
                     for (c, name) in ["neg-port", "neg-address", "neg-protocol"].iter().enumerate() {
-                        if let Some(m) = mutate(ip, &w, c) {
+                        if let Some(m) = mutate(ip, &w, c, hook) {
                             items.push((name, m));
                         }
                     }
                 }
                 for (class, bytes) in items {
-                    let offline = admit(&w.allow, &w.deny, held_path(&bytes, 0).as_ref());
-                    let mut f = dst.clone();
-                    f.extend_from_slice(&src);
-                    f.extend_from_slice(&ether);
-                    f.extend_from_slice(&bytes);
-                    inj.send(&f).expect("send");
+                    let offline = admit(&w.allow, &w.deny, held_path(&bytes, hook).as_ref());
+                    let res = match (&link, &raw) {
+                        (Some(l), _) => {
+                            let mut f = dst.clone();
+                            f.extend_from_slice(&src);
+                            f.extend_from_slice(&ether);
+                            f.extend_from_slice(&bytes);
+                            l.send(&f)
+                        }
+                        (_, Some(r)) => r.send(&bytes),
+                        _ => unreachable!(),
+                    };
+                    // A send the kernel refuses (e.g. EPERM when the queue has no reader) did not pass:
+                    // it stays in the manifest and the observer never sees it.
                     manifest.push_str(&format!("{:016x} {class} {}\n", fnv(&bytes), offline as u8));
-                    sent += 1;
+                    match res {
+                        Ok(()) => sent += 1,
+                        Err(e) => {
+                            println!("REFUSED {class} {:016x}: {e}", fnv(&bytes));
+                            refused += 1;
+                        }
+                    }
                     std::thread::sleep(SEND_GAP);
                 }
             }
-            std::fs::write(&a[7], manifest).expect("manifest");
-            println!("SENT {sent}");
+            std::fs::write(&a[9], manifest).expect("manifest");
+            println!("SENT {sent} REFUSED {refused}");
         }
         Some("report") => {
             let man = std::fs::read_to_string(&a[2]).unwrap();
