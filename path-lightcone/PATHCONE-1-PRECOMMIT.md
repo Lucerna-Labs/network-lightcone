@@ -409,3 +409,13 @@ The results and evidence of every run stay in this doc and `evidence/`.
 - `pathcone6` reproduces run 6 exactly (speed aside);
 - the PATHGATE-2 lab reproduces every count (timings aside);
 - the workspace tests pass.
+
+## Jesse's decision on the open question (2026-10-21)
+
+**The question:** at the hub, should neighbour-discovery senders be learned (folded), or must they
+stay exact?
+
+> "I think it should learn, or we will be stuck with not 100 percent compatibility."
+
+**Decision:** neighbour-discovery senders stay **learned**. The run-6 hub world's (inbound, ICMPv6)
+source wildcard is kept as designed, not removed.
