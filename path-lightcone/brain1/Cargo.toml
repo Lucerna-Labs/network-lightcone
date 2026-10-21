@@ -1,0 +1,14 @@
+[package]
+name = "brain1"
+version = "0.1.0"
+edition = "2021"
+description = "CONSOLIDATE-1 orchestrator (door two): classify door one's drops by cause, consolidate self-caused evidence into candidate packs, check them offline."
+
+[dependencies]
+path-sense = { path = "../path-sense" }
+path-world = { path = "../path-world" }
+path-admit = { path = "../path-admit" }
+path-frame = { path = "../path-frame" }
+path-pack = { path = "../path-pack" }
+path-self = { path = "../path-self" }
+path-consolidate = { path = "../path-consolidate" }

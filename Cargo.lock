@@ -12,6 +12,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "brain1"
+version = "0.1.0"
+dependencies = [
+ "path-admit",
+ "path-consolidate",
+ "path-frame",
+ "path-pack",
+ "path-self",
+ "path-sense",
+ "path-world",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -107,6 +120,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "path-consolidate"
+version = "0.1.0"
+dependencies = [
+ "path-sense",
+ "path-world",
+]
+
+[[package]]
 name = "path-frame"
 version = "0.1.0"
 dependencies = [
@@ -127,6 +148,14 @@ dependencies = [
 [[package]]
 name = "path-queue"
 version = "0.1.0"
+
+[[package]]
+name = "path-self"
+version = "0.1.0"
+dependencies = [
+ "path-sense",
+ "path-world",
+]
 
 [[package]]
 name = "path-sense"
@@ -155,6 +184,7 @@ dependencies = [
  "path-admit",
  "path-frame",
  "path-inject",
+ "path-pack",
  "path-queue",
  "path-sense",
  "path-world",

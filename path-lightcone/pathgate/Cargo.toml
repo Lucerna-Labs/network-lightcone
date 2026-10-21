@@ -11,3 +11,4 @@ path-admit = { path = "../path-admit" }
 path-queue = { path = "../path-queue" }
 path-frame = { path = "../path-frame" }
 path-inject = { path = "../path-inject" }
+path-pack = { path = "../path-pack" }

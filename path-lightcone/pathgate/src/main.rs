@@ -5,6 +5,8 @@
 //!
 //! Modes:
 //!   gate EVIDENCE ROLE QUEUE SECONDS hold each packet, judge it, release or discard ("V hash pass ns")
+//!   gate-pack PACKFILE - QUEUE SECONDS the same, with the world built from a training pack
+//!   (set PATHGATE_RELEASE_ALL=1 for passive log-only: judge and log, but always release)
 //!   observe QUEUE SECONDS            release every packet, record it ("O hash"): the passage receipt
 //!   inject EVIDENCE ROLE in|out IFACE DSTMAC SRCMAC pos|all MANIFEST   replay recorded packets
 //!                                    (+ mutations): in = Ethernet frames onto the veth (PREROUTING),
@@ -106,12 +108,24 @@ fn train(ev: &str, role: &str) -> (Worlds, Vec<Rec>) {
     for arm in ["quarantined", "kernel_recovered"] {
         held.extend(read_jsonl(&format!("{io}/{arm}-{role}-packets.jsonl")));
     }
+    (worlds(&train_paths), held)
+}
+
+/// The allow and deny worlds from training paths (the same law and deny construction as
+/// Imperium's `imperium-net-pathworld`).
+fn worlds(train_paths: &[Path]) -> Worlds {
     let seen: std::collections::HashSet<Sym> = train_paths.iter().flatten().copied().collect();
     let untrained_port = (40000u128..).find(|v| !seen.contains(&Sym { field: F_DPORT, value: *v }) && !seen.contains(&Sym { field: F_SPORT, value: *v })).unwrap();
-    let allow = World::train_context(&train_paths, FOLD);
+    let allow = World::train_context(train_paths, FOLD);
     let deny_train: Vec<Path> = train_paths.iter().filter_map(|p| port_mutation(p, &allow, untrained_port)).collect();
     let deny = World::train(&deny_train);
-    (Worlds { allow, deny, untrained_port }, held)
+    Worlds { allow, deny, untrained_port }
+}
+
+fn pack_worlds(file: &str) -> Worlds {
+    let text = std::fs::read_to_string(file).unwrap_or_else(|e| panic!("{file}: {e}"));
+    let pack = path_pack::decode(&text).unwrap_or_else(|| panic!("{file}: malformed pack (refusing)"));
+    worlds(&pack.paths)
 }
 
 fn exact_index(p: &Path, w: &World, f: u8) -> Option<usize> {
@@ -211,13 +225,16 @@ fn mac(s: &str) -> Vec<u8> {
 fn main() {
     let a: Vec<String> = std::env::args().collect();
     match a.get(1).map(|s| s.as_str()) {
-        Some("gate") => {
+        Some(mode @ ("gate" | "gate-pack")) => {
+            // gate EVIDENCE ROLE QUEUE SECONDS | gate-pack PACKFILE - QUEUE SECONDS
             lab_only();
-            let (w, _) = train(&a[2], &a[3]);
+            let w = if mode == "gate" { train(&a[2], &a[3]).0 } else { pack_worlds(&a[2]) };
             let mut q = PacketQueue::bind(a[4].parse().unwrap(), QUEUE_CAPACITY).expect("bind gate queue");
             println!("READY");
             let deadline = Instant::now() + Duration::from_secs(a[5].parse().unwrap());
             let log_bytes = std::env::var_os("PATHGATE_LOG_BYTES").is_some();
+            // Log-only (passive) mode: judge and log the true verdict, but always release.
+            let release_all = std::env::var_os("PATHGATE_RELEASE_ALL").is_some();
             while Instant::now() < deadline {
                 // Any transport error ends the reader: the kernel then drops everything held (fail-closed).
                 let Some(pk) = q.receive(Duration::from_millis(50)).expect("receive") else { continue };
@@ -225,8 +242,15 @@ fn main() {
                 let path = held_path(pk.bytes(), pk.hook);
                 let pass = admit(&w.allow, &w.deny, path.as_ref());
                 let h = fnv(pk.bytes());
-                let extra = if log_bytes { format!(" {} {}", pk.hook, to_hex(pk.bytes())) } else { String::new() };
-                q.finish(pk, if pass { KernelDisposition::Release } else { KernelDisposition::Discard }).expect("verdict");
+                // Byte log: hook, packet hex, then input/output interface index and wall time (ns).
+                let extra = if log_bytes {
+                    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+                    format!(" {} {} {} {} {now}", pk.hook, to_hex(pk.bytes()), pk.input_interface.unwrap_or(0), pk.output_interface.unwrap_or(0))
+                } else {
+                    String::new()
+                };
+                let disposition = if pass || release_all { KernelDisposition::Release } else { KernelDisposition::Discard };
+                q.finish(pk, disposition).expect("verdict");
                 println!("V {h:016x} {} {}{extra}", pass as u8, t.elapsed().as_nanos());
             }
             println!("FINISHED");

@@ -1,3 +1,3 @@
 [workspace]
-members = ["kernel-lightcone", "network-observer", "network-replay", "path-lightcone/path-sense", "path-lightcone/path-world", "path-lightcone/path-admit", "path-lightcone/pathcone6", "path-lightcone/path-queue", "path-lightcone/path-frame", "path-lightcone/path-inject", "path-lightcone/pathgate", "path-lightcone/path-pack", "path-lightcone/pathpack"]
+members = ["kernel-lightcone", "network-observer", "network-replay", "path-lightcone/path-sense", "path-lightcone/path-world", "path-lightcone/path-admit", "path-lightcone/pathcone6", "path-lightcone/path-queue", "path-lightcone/path-frame", "path-lightcone/path-inject", "path-lightcone/pathgate", "path-lightcone/path-pack", "path-lightcone/pathpack", "path-lightcone/path-self", "path-lightcone/path-consolidate", "path-lightcone/brain1"]
 resolver = "2"

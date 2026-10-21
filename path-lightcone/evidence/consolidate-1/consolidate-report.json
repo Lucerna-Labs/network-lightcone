@@ -1,0 +1,127 @@
+{
+  "experiment": "CONSOLIDATE-1",
+  "imperium_filter_enforced": false,
+  "episodes": {
+    "1": {
+      "tunnel_udp4": [
+        10,
+        10
+      ],
+      "tunnel_tcp4": [
+        5,
+        5
+      ],
+      "direct_udp4": [
+        10,
+        10
+      ],
+      "direct_udp6": [
+        10,
+        10
+      ],
+      "direct_tcp6": [
+        5,
+        5
+      ],
+      "loopback_udp4": [
+        3,
+        3
+      ],
+      "loopback_udp6": [
+        3,
+        3
+      ]
+    },
+    "2": {
+      "tunnel_udp4": [
+        10,
+        10
+      ],
+      "tunnel_tcp4": [
+        5,
+        5
+      ],
+      "direct_udp4": [
+        10,
+        10
+      ],
+      "direct_udp6": [
+        10,
+        10
+      ],
+      "direct_tcp6": [
+        5,
+        5
+      ],
+      "loopback_udp4": [
+        3,
+        3
+      ],
+      "loopback_udp6": [
+        3,
+        3
+      ]
+    },
+    "3": {
+      "tunnel_udp4": [
+        10,
+        10
+      ],
+      "tunnel_tcp4": [
+        5,
+        5
+      ],
+      "direct_udp4": [
+        10,
+        10
+      ],
+      "direct_udp6": [
+        10,
+        10
+      ],
+      "direct_tcp6": [
+        5,
+        5
+      ],
+      "loopback_udp4": [
+        3,
+        3
+      ],
+      "loopback_udp6": [
+        3,
+        3
+      ]
+    },
+    "4": {
+      "tunnel_udp4": [
+        10,
+        10
+      ],
+      "tunnel_tcp4": [
+        5,
+        5
+      ],
+      "direct_udp4": [
+        10,
+        10
+      ],
+      "direct_udp6": [
+        10,
+        10
+      ],
+      "direct_tcp6": [
+        5,
+        5
+      ],
+      "loopback_udp4": [
+        3,
+        3
+      ],
+      "loopback_udp6": [
+        3,
+        3
+      ]
+    }
+  },
+  "owned_vms_stopped": true
+}

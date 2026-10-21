@@ -1,0 +1,95 @@
+Run directory: /home/jesse/Desktop/Projects/imperium-main/imperium-main/target/lightcone-vm/consolidate-runs/20261021-171124
+-- episode 1 (pack role.pathpack)
+   echoes: {'tunnel_udp4': (10, 10), 'tunnel_tcp4': (5, 5), 'direct_udp4': (10, 10), 'direct_udp6': (10, 10), 'direct_tcp6': (5, 5), 'loopback_udp4': (3, 3), 'loopback_udp6': (3, 3)}
+-- episode 2 (pack role.pathpack)
+   echoes: {'tunnel_udp4': (10, 10), 'tunnel_tcp4': (5, 5), 'direct_udp4': (10, 10), 'direct_udp6': (10, 10), 'direct_tcp6': (5, 5), 'loopback_udp4': (3, 3), 'loopback_udp6': (3, 3)}
+-- episode 3 (pack role.pathpack)
+   echoes: {'tunnel_udp4': (10, 10), 'tunnel_tcp4': (5, 5), 'direct_udp4': (10, 10), 'direct_udp6': (10, 10), 'direct_tcp6': (5, 5), 'loopback_udp4': (3, 3), 'loopback_udp6': (3, 3)}
+[hub] old 777 paths -> candidate 792 (+15 added, 0 refused by deny)
+   episode 1: authenticated_tunnel 12
+   episode 1: own_address 4
+   episode 2: authenticated_tunnel 12
+   episode 2: own_address 4
+   episode 2: unexplained 4
+   episode 3: authenticated_tunnel 12
+   episode 3: own_address 4
+   episode 3: unexplained 2
+   offline: candidate admits 48/48 self-caused drops, 0/6 adversarial paths; adversarial in pack 0; old paths kept true
+   self-caused drops: episode 1 16, episode 4 0
+   wildcards per field: old {3: 1, 5: 13, 6: 11} -> candidate {3: 4, 5: 13, 6: 11}
+   [diag] candidate address wildcard after 0:1 1:86dd 2:3a (0 exact siblings)
+   [diag] candidate address wildcard after 0:1 1:86dd 2:0 (0 exact siblings)
+   [diag] candidate address wildcard after 0:0 1:86dd 2:3a (0 exact siblings)
+   [diag] candidate address wildcard after 0:0 1:86dd 2:0 (0 exact siblings)
+[source] old 468 paths -> candidate 475 (+7 added, 0 refused by deny)
+   episode 1: own_address 6
+   episode 2: own_address 6
+   episode 2: unexplained 2
+   episode 3: own_address 7
+   episode 3: unexplained 1
+   offline: candidate admits 19/19 self-caused drops, 0/6 adversarial paths; adversarial in pack 0; old paths kept true
+   self-caused drops: episode 1 6, episode 4 0
+   wildcards per field: old {5: 6, 6: 6} -> candidate {3: 2, 5: 6, 6: 6}
+   [diag] candidate address wildcard after 0:1 1:86dd 2:3a (0 exact siblings)
+   [diag] candidate address wildcard after 0:1 1:86dd 2:0 (0 exact siblings)
+[receiver] old 472 paths -> candidate 478 (+6 added, 0 refused by deny)
+   episode 1: own_address 6
+   episode 2: own_address 6
+   episode 3: own_address 6
+   offline: candidate admits 18/18 self-caused drops, 0/6 adversarial paths; adversarial in pack 0; old paths kept true
+   self-caused drops: episode 1 6, episode 4 0
+   wildcards per field: old {5: 6, 6: 6} -> candidate {3: 2, 5: 6, 6: 6}
+   [diag] candidate address wildcard after 0:1 1:86dd 2:3a (0 exact siblings)
+   [diag] candidate address wildcard after 0:1 1:86dd 2:0 (0 exact siblings)
+
+HOLDS  C1 every adversarial path (A1-A4) unexplained
+HOLDS  C2 0 adversarial paths in packs; every self-caused drop in
+HOLDS  C3 add-only
+HOLDS  C4 candidate admits all self-caused, 0 adversarial (offline)
+HOLDS  C6 fewer self-caused drops in episode 4 than 1, every role
+
+-- episode 4 (pack candidate.pathpack)
+   echoes: {'tunnel_udp4': (10, 10), 'tunnel_tcp4': (5, 5), 'direct_udp4': (10, 10), 'direct_udp6': (10, 10), 'direct_tcp6': (5, 5), 'loopback_udp4': (3, 3), 'loopback_udp6': (3, 3)}
+[hub] old 777 paths -> candidate 792 (+15 added, 0 refused by deny)
+   episode 1: authenticated_tunnel 12
+   episode 1: own_address 4
+   episode 2: authenticated_tunnel 12
+   episode 2: own_address 4
+   episode 2: unexplained 4
+   episode 3: authenticated_tunnel 12
+   episode 3: own_address 4
+   episode 3: unexplained 2
+   offline: candidate admits 48/48 self-caused drops, 0/6 adversarial paths; adversarial in pack 0; old paths kept true
+   self-caused drops: episode 1 16, episode 4 0
+   wildcards per field: old {3: 1, 5: 13, 6: 11} -> candidate {3: 4, 5: 13, 6: 11}
+   [diag] candidate address wildcard after 0:0 1:86dd 2:0 (0 exact siblings)
+   [diag] candidate address wildcard after 0:0 1:86dd 2:3a (0 exact siblings)
+   [diag] candidate address wildcard after 0:1 1:86dd 2:3a (0 exact siblings)
+   [diag] candidate address wildcard after 0:1 1:86dd 2:0 (0 exact siblings)
+[source] old 468 paths -> candidate 475 (+7 added, 0 refused by deny)
+   episode 1: own_address 6
+   episode 2: own_address 6
+   episode 2: unexplained 2
+   episode 3: own_address 7
+   episode 3: unexplained 1
+   offline: candidate admits 19/19 self-caused drops, 0/6 adversarial paths; adversarial in pack 0; old paths kept true
+   self-caused drops: episode 1 6, episode 4 0
+   wildcards per field: old {5: 6, 6: 6} -> candidate {3: 2, 5: 6, 6: 6}
+   [diag] candidate address wildcard after 0:1 1:86dd 2:0 (0 exact siblings)
+   [diag] candidate address wildcard after 0:1 1:86dd 2:3a (0 exact siblings)
+[receiver] old 472 paths -> candidate 478 (+6 added, 0 refused by deny)
+   episode 1: own_address 6
+   episode 2: own_address 6
+   episode 3: own_address 6
+   offline: candidate admits 18/18 self-caused drops, 0/6 adversarial paths; adversarial in pack 0; old paths kept true
+   self-caused drops: episode 1 6, episode 4 0
+   wildcards per field: old {5: 6, 6: 6} -> candidate {3: 2, 5: 6, 6: 6}
+   [diag] candidate address wildcard after 0:1 1:86dd 2:0 (0 exact siblings)
+   [diag] candidate address wildcard after 0:1 1:86dd 2:3a (0 exact siblings)
+
+HOLDS  C1 every adversarial path (A1-A4) unexplained
+HOLDS  C2 0 adversarial paths in packs; every self-caused drop in
+HOLDS  C3 add-only
+HOLDS  C4 candidate admits all self-caused, 0 adversarial (offline)
+HOLDS  C6 fewer self-caused drops in episode 4 than 1, every role
+

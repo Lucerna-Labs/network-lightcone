@@ -146,3 +146,63 @@ offline, which is stronger (exhaustive, deterministic) than a handful of live in
 
 The live VM lab now runs **legitimate restarts only** (fresh TUNs each episode), which is what
 produces the real self-caused drops the brain learns from.
+
+## Second method note (2026-10-21, before the run): the lab gate is log-only, C5 is offline
+
+To *learn*, the brain needs door one's **verdict** on live traffic. Imperium's door one is passive:
+it judges and records, it does not block (`filter_enforced=false`). So the lab gate runs **log-only**
+— it computes and byte-logs the true pass/drop verdict for every packet, and always releases — via
+`PATHGATE_RELEASE_ALL=1`. This matches Imperium exactly and cannot break the live mesh bring-up or
+the cases (so the fresh tunnels actually come up, which is what produces the drops to learn from).
+
+**C5 becomes offline, and widens to the full negative set.** "Consolidation did not loosen door
+one" is proven by evaluating the candidate world against the adversarial/negative shapes offline:
+A1–A4 above, plus **A5 (protocol swap on a trained service)** and **A6 (trained service from an
+untrained source address)** — the PATHGATE-3 live negatives, in path form. C4/C5: the candidate
+world admits every self-caused drop and **0** of A1–A6. The live episode 4 instead measures C6
+directly: with the candidate pack, the fresh-restart housekeeping that episode 1 dropped is now
+admitted (fewer self-caused drops), proving the gap closed end to end.
+
+## Results (2026-10-21, `evidence/consolidate-1/`): all predictions hold
+
+Imperium's three-VM lab, four episodes, each a fresh mesh bring-up (fresh TUN link-local
+addresses), the gate log-only in every guest. (A first run had a harness bug — one self-readings
+file per guest overwritten each episode — so episodes 1–2 drops looked unexplained; fixed to
+per-episode readings and re-run. The bug and fix are in `run.log`.)
+
+| # | Prediction | Result |
+|---|---|---|
+| C1 | every adversarial path A1–A6 is `Unexplained` | **HOLDS** |
+| C2 | 0 adversarial paths in packs; every self-caused drop consolidated | **HOLDS** |
+| C3 | add-only (every old path kept) | **HOLDS** |
+| C4 | candidate admits 100% of self-caused drops, 0 of A1–A6 | **HOLDS** (hub 48/48, source 19/19, receiver 18/18; adversarial 0/6 each) |
+| C5 | consolidation did not loosen door one (A5/A6 = PATHGATE-3 negatives still denied) | **HOLDS** (folded into C4's 0/6) |
+| C6 | episode 4 has fewer self-caused drops than episode 1, every role | **HOLDS** |
+
+**The measured question — did door one's own law fold the tunnel link-local address? — is YES.**
+- Candidate wildcards per field: hub `{3: 1→4}`, source `{3: 0→2}`, receiver `{3: 0→2}`. Only the
+  **source-address** position folded, and only under the IPv6 ND/MLD contexts (link `86dd`, L4 `0`
+  or `3a`). Service ports (5, 6) were untouched.
+- So in episode 4, the tunnels' **brand-new** link-local addresses (never trained, never in the
+  evidence) were admitted. **Self-caused drops: episode 1 = 16/6/6, episode 4 = 0/0/0.** The gap
+  door one left at the end of PATHGATE-3 is closed.
+- Packs grew add-only: hub 777→792 (+15), source 468→475 (+7), receiver 472→478 (+6). The deny
+  world refused 0 (none of the self-caused evidence is a denied shape).
+
+**The guard that makes it safe** (`path-self`): a drop is consolidated only when the machine
+explains the novelty by **identity** — an `own_address` source (outbound) or an
+`authenticated_tunnel` (inbound on a TUN, behind the frozen AEAD), **and** the path matches a
+trained path everywhere except that source. Everything else, including a spoof of the host's own
+address arriving on a physical link, is `Unexplained` and is never consolidated automatically. A
+small `unexplained` residue remained in some episodes and was correctly left for Jesse, not
+learned.
+
+**Conclusion.** Door two reads door one, learns self-caused new normal, and hands it back as
+evidence; door one relearns it with its own immutable law and generalises. The adversary cannot
+ride the channel in. With the identity guard and the offline adversarial check measured, **I concur
+this works well** — within the stated limit that an *authenticated but compromised peer* is trusted
+by `authenticated_tunnel` (recorded in `path-self`).
+
+**The seam to door two's autonomy:** self-caused consolidation can build a candidate pack without
+Jesse; the reseal (deny-check, VM test, TPU seal, swap) is still a gated ceremony, and unexplained
+novelty waits for him.
