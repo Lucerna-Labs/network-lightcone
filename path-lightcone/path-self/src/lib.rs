@@ -47,6 +47,57 @@ pub fn cause(path: &Path, hook: u8, in_if: u32, readings: &SelfReadings, allow: 
     }
 }
 
+/// CONSOLIDATE-1 / door two: the self/non-self law with identity supplied by the **channel**, the
+/// cleanest in-repo signal. `inbound_authenticated` means the caller vouches this inbound packet
+/// arrived through an already-authenticated channel (e.g. a decapsulated tunnel packet, post-AEAD)
+/// — a signal an outside attacker cannot forge. A drop is self only when the path matches a trained
+/// path everywhere except its source and either it is outbound from one of the host's own
+/// addresses, or it is inbound through that authenticated channel.
+pub fn cause_vouched(
+    path: &Path,
+    outbound: bool,
+    own_addresses: &HashSet<u128>,
+    inbound_authenticated: bool,
+    allow: &World,
+) -> Cause {
+    let Some(src_at) = path.iter().position(|s| s.field == F_SRC) else { return Cause::Unexplained };
+    if !allow.matches_except(path, &[src_at]) {
+        return Cause::Unexplained;
+    }
+    if outbound && own_addresses.contains(&path[src_at].value) {
+        Cause::OwnAddress
+    } else if !outbound && inbound_authenticated {
+        Cause::AuthenticatedTunnel
+    } else {
+        Cause::Unexplained
+    }
+}
+
+#[cfg(test)]
+mod vouched_tests {
+    use super::*;
+    use path_sense::Sym;
+
+    fn p(dir: u128, src: u128, dport: u128) -> Path {
+        [(0u8, dir), (1, 0x0800), (2, 17), (3, src), (4, 0xc633_6402), (5, 51000), (6, dport)].iter().map(|&(f, v)| Sym { field: f, value: v }).collect()
+    }
+
+    #[test]
+    fn channel_identity_classifies_self_and_refuses_forgery() {
+        let own = 0xc000_0202u128;
+        let allow = World::train(&[p(0, 0xc000_0201, 45998), p(1, own, 45998)]);
+        let owns: HashSet<u128> = [own].into_iter().collect();
+        // Inbound through the authenticated channel, novel source, trained otherwise: self.
+        assert_eq!(cause_vouched(&p(0, 0xdead, 45998), false, &owns, true, &allow), Cause::AuthenticatedTunnel);
+        // Same shape but NOT vouched (e.g. an un-authenticated inbound datagram): unexplained.
+        assert_eq!(cause_vouched(&p(0, 0xdead, 45998), false, &owns, false, &allow), Cause::Unexplained);
+        // Outbound from our own address: self.
+        assert_eq!(cause_vouched(&p(1, own, 45998), true, &owns, false, &allow), Cause::OwnAddress);
+        // Novelty beyond the source, even vouched: unexplained.
+        assert_eq!(cause_vouched(&p(0, 0xdead, 45996), false, &owns, true, &allow), Cause::Unexplained);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
