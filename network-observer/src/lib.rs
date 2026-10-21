@@ -19,6 +19,53 @@ pub struct Observation {
     pub reason: &'static str,
 }
 
+/// Actual parser events, containing structural metadata but no payload bytes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ObserverStep {
+    Enter {
+        stage: &'static str,
+        offset: usize,
+        length: usize,
+    },
+    Field {
+        name: &'static str,
+        value: u64,
+    },
+    Check {
+        rejection_reason: &'static str,
+        passed: bool,
+    },
+    Seed {
+        node: usize,
+    },
+    Discard {
+        reason: &'static str,
+        seeds: [u64; NODE_WORDS],
+    },
+    Finish {
+        kind: ObservationKind,
+        reason: &'static str,
+        seeds: [u64; NODE_WORDS],
+    },
+}
+fn rejected(bad: bool, reason: &'static str, trace: &mut impl FnMut(ObserverStep)) -> bool {
+    trace(ObserverStep::Check {
+        rejection_reason: reason,
+        passed: !bad,
+    });
+    bad
+}
+fn traced_set(mask: &mut [u64; NODE_WORDS], node: usize, trace: &mut impl FnMut(ObserverStep)) {
+    set(mask, node);
+    trace(ObserverStep::Seed { node });
+}
+fn field(trace: &mut impl FnMut(ObserverStep), name: &'static str, value: usize) {
+    trace(ObserverStep::Field {
+        name,
+        value: value as u64,
+    });
+}
+
 fn word(bytes: &[u8], offset: usize) -> u16 {
     u16::from_be_bytes([bytes[offset], bytes[offset + 1]])
 }
@@ -71,37 +118,60 @@ fn decode_udp(
     ip: &[u8],
     data: &[u8],
     ipv6: bool,
+    offset: usize,
+    trace: &mut impl FnMut(ObserverStep),
 ) -> Result<(), &'static str> {
-    if data.len() < 8 {
+    trace(ObserverStep::Enter {
+        stage: "udp",
+        offset,
+        length: data.len(),
+    });
+    if rejected(data.len() < 8, "udp_short_header", trace) {
         return Err("udp_short_header");
     }
+    field(trace, "udp_source_port", word(data, 0) as usize);
+    field(trace, "udp_destination_port", word(data, 2) as usize);
     let length = word(data, 4) as usize;
-    if length < 8 || length != data.len() {
+    field(trace, "udp_length", length);
+    if rejected(
+        length < 8 || length != data.len(),
+        "udp_length_mismatch",
+        trace,
+    ) {
         return Err("udp_length_mismatch");
     }
     let checksum = word(data, 6);
+    field(trace, "udp_checksum", checksum as usize);
     if ipv6 {
-        if checksum == 0 {
+        if rejected(checksum == 0, "udp_ipv6_zero_checksum", trace) {
             return Err("udp_ipv6_zero_checksum");
         }
-        if !valid_ipv6_transport(ip, data, 17) {
+        if rejected(
+            !valid_ipv6_transport(ip, data, 17),
+            "udp_ipv6_bad_checksum",
+            trace,
+        ) {
             return Err("udp_ipv6_bad_checksum");
         }
-    } else if checksum != 0 && !valid_ipv4_transport(ip, data, 17) {
+    } else if rejected(
+        checksum != 0 && !valid_ipv4_transport(ip, data, 17),
+        "udp_ipv4_bad_checksum",
+        trace,
+    ) {
         return Err("udp_ipv4_bad_checksum");
     }
-    set(&mut out.seeds, node::UDP);
-    set(&mut out.seeds, node::UDP_LENGTH);
-    set(&mut out.seeds, node::UDP_PORTS);
+    traced_set(&mut out.seeds, node::UDP, trace);
+    traced_set(&mut out.seeds, node::UDP_LENGTH, trace);
+    traced_set(&mut out.seeds, node::UDP_PORTS, trace);
     if word(data, 0) == 0 {
-        set(&mut out.seeds, node::UDP_SOURCE_ZERO);
+        traced_set(&mut out.seeds, node::UDP_SOURCE_ZERO, trace);
     }
     if checksum == 0 {
-        set(&mut out.seeds, node::UDP_NO_CHECKSUM);
+        traced_set(&mut out.seeds, node::UDP_NO_CHECKSUM, trace);
         out.reason = "ipv4_udp_no_checksum";
     } else {
-        set(&mut out.seeds, node::UDP_CHECKSUM);
-        set(&mut out.seeds, node::UDP_INTEGRITY);
+        traced_set(&mut out.seeds, node::UDP_CHECKSUM, trace);
+        traced_set(&mut out.seeds, node::UDP_INTEGRITY, trace);
         out.reason = if ipv6 {
             "ipv6_udp_valid"
         } else {
@@ -116,27 +186,54 @@ fn decode_tcp(
     ip: &[u8],
     data: &[u8],
     ipv6: bool,
+    offset: usize,
+    trace: &mut impl FnMut(ObserverStep),
 ) -> Result<(), &'static str> {
-    if data.len() < 20 {
+    trace(ObserverStep::Enter {
+        stage: "tcp",
+        offset,
+        length: data.len(),
+    });
+    if rejected(data.len() < 20, "tcp_short_header", trace) {
         return Err("tcp_short_header");
     }
+    field(trace, "tcp_source_port", word(data, 0) as usize);
+    field(trace, "tcp_destination_port", word(data, 2) as usize);
+    field(
+        trace,
+        "tcp_sequence",
+        u32::from_be_bytes([data[4], data[5], data[6], data[7]]) as usize,
+    );
+    field(
+        trace,
+        "tcp_acknowledgment",
+        u32::from_be_bytes([data[8], data[9], data[10], data[11]]) as usize,
+    );
+    field(trace, "tcp_flags", data[13] as usize);
+    field(trace, "tcp_window", word(data, 14) as usize);
     let header = (data[12] >> 4) as usize * 4;
-    if header < 20 || header > data.len() {
+    field(trace, "tcp_header_length", header);
+    if rejected(
+        header < 20 || header > data.len(),
+        "tcp_header_length_invalid",
+        trace,
+    ) {
         return Err("tcp_header_length_invalid");
     }
+    field(trace, "tcp_payload_length", data.len() - header);
     let valid = if ipv6 {
         valid_ipv6_transport(ip, data, 6)
     } else {
         valid_ipv4_transport(ip, data, 6)
     };
-    if !valid {
+    if rejected(!valid, "tcp_bad_checksum", trace) {
         return Err("tcp_bad_checksum");
     }
-    set(&mut out.seeds, node::TCP);
-    set(&mut out.seeds, node::TCP_PORTS);
-    set(&mut out.seeds, node::TCP_CHECKSUM);
+    traced_set(&mut out.seeds, node::TCP, trace);
+    traced_set(&mut out.seeds, node::TCP_PORTS, trace);
+    traced_set(&mut out.seeds, node::TCP_CHECKSUM, trace);
     if data.len() > header {
-        set(&mut out.seeds, node::TCP_PAYLOAD);
+        traced_set(&mut out.seeds, node::TCP_PAYLOAD, trace);
     }
     for (flag, symbol) in [
         (0x02, node::TCP_SYN),
@@ -145,7 +242,7 @@ fn decode_tcp(
         (0x04, node::TCP_RST),
     ] {
         if data[13] & flag != 0 {
-            set(&mut out.seeds, symbol);
+            traced_set(&mut out.seeds, symbol, trace);
         }
     }
     out.reason = if ipv6 {
@@ -156,21 +253,33 @@ fn decode_tcp(
     Ok(())
 }
 
-fn decode_icmpv4(out: &mut Observation, data: &[u8]) -> Result<(), &'static str> {
-    if data.len() < 8 {
+fn decode_icmpv4(
+    out: &mut Observation,
+    data: &[u8],
+    offset: usize,
+    trace: &mut impl FnMut(ObserverStep),
+) -> Result<(), &'static str> {
+    trace(ObserverStep::Enter {
+        stage: "icmpv4",
+        offset,
+        length: data.len(),
+    });
+    if rejected(data.len() < 8, "icmpv4_short_message", trace) {
         return Err("icmpv4_short_message");
     }
-    if !valid_checksum(data) {
+    field(trace, "icmpv4_type", data[0] as usize);
+    field(trace, "icmpv4_code", data[1] as usize);
+    if rejected(!valid_checksum(data), "icmpv4_bad_checksum", trace) {
         return Err("icmpv4_bad_checksum");
     }
-    set(&mut out.seeds, node::ICMP_CHECKSUM);
+    traced_set(&mut out.seeds, node::ICMP_CHECKSUM, trace);
     match (data[0], data[1]) {
-        (8, 0) => set(&mut out.seeds, node::ICMP_REQUEST),
-        (0, 0) => set(&mut out.seeds, node::ICMP_REPLY),
-        (3, 0..=15) => set(&mut out.seeds, node::ICMP_UNREACHABLE),
-        (11, 0..=1) => set(&mut out.seeds, node::ICMP_EXPIRED),
-        (12, _) => set(&mut out.seeds, node::ICMP_PARAMETER_PROBLEM),
-        (5, _) => set(&mut out.seeds, node::ICMP_REDIRECT),
+        (8, 0) => traced_set(&mut out.seeds, node::ICMP_REQUEST, trace),
+        (0, 0) => traced_set(&mut out.seeds, node::ICMP_REPLY, trace),
+        (3, 0..=15) => traced_set(&mut out.seeds, node::ICMP_UNREACHABLE, trace),
+        (11, 0..=1) => traced_set(&mut out.seeds, node::ICMP_EXPIRED, trace),
+        (12, _) => traced_set(&mut out.seeds, node::ICMP_PARAMETER_PROBLEM, trace),
+        (5, _) => traced_set(&mut out.seeds, node::ICMP_REDIRECT, trace),
         _ => {
             out.reason = "icmpv4_unrepresented_type";
             return Ok(());
@@ -180,14 +289,30 @@ fn decode_icmpv4(out: &mut Observation, data: &[u8]) -> Result<(), &'static str>
     Ok(())
 }
 
-fn ndp_has_source_link_option(data: &[u8], mut offset: usize) -> Result<bool, &'static str> {
+fn ndp_has_source_link_option(
+    data: &[u8],
+    mut offset: usize,
+    absolute: usize,
+    trace: &mut impl FnMut(ObserverStep),
+) -> Result<bool, &'static str> {
     let mut found = false;
     while offset < data.len() {
-        if offset + 2 > data.len() {
+        trace(ObserverStep::Enter {
+            stage: "ndp_option",
+            offset: absolute + offset,
+            length: data.len() - offset,
+        });
+        if rejected(offset + 2 > data.len(), "ndp_option_length_invalid", trace) {
             return Err("ndp_option_length_invalid");
         }
         let length = data[offset + 1] as usize * 8;
-        if length == 0 || offset + length > data.len() {
+        field(trace, "ndp_option_type", data[offset] as usize);
+        field(trace, "ndp_option_length", length);
+        if rejected(
+            length == 0 || offset + length > data.len(),
+            "ndp_option_length_invalid",
+            trace,
+        ) {
             return Err("ndp_option_length_invalid");
         }
         found |= data[offset] == 1;
@@ -208,20 +333,37 @@ fn link_local_ipv6(address: &[u8]) -> bool {
     address[0] == 0xfe && address[1] & 0xc0 == 0x80
 }
 
-fn decode_icmpv6(out: &mut Observation, ip: &[u8], data: &[u8]) -> Result<(), &'static str> {
-    if data.len() < 8 {
+fn decode_icmpv6(
+    out: &mut Observation,
+    ip: &[u8],
+    data: &[u8],
+    offset: usize,
+    trace: &mut impl FnMut(ObserverStep),
+) -> Result<(), &'static str> {
+    trace(ObserverStep::Enter {
+        stage: "icmpv6",
+        offset,
+        length: data.len(),
+    });
+    if rejected(data.len() < 8, "icmpv6_short_message", trace) {
         return Err("icmpv6_short_message");
     }
-    if !valid_ipv6_transport(ip, data, 58) {
+    field(trace, "icmpv6_type", data[0] as usize);
+    field(trace, "icmpv6_code", data[1] as usize);
+    if rejected(
+        !valid_ipv6_transport(ip, data, 58),
+        "icmpv6_bad_checksum",
+        trace,
+    ) {
         return Err("icmpv6_bad_checksum");
     }
     // Neighbor Discovery has stricter wire validity than generic ICMPv6.
     // Validate it before any IPv6 or NDP seed can reach the Lightcone.
     if (133..=136).contains(&data[0]) {
-        if ip[7] != 255 {
+        if rejected(ip[7] != 255, "ndp_hop_limit_invalid", trace) {
             return Err("ndp_hop_limit_invalid");
         }
-        if data[1] != 0 {
+        if rejected(data[1] != 0, "ndp_code_invalid", trace) {
             return Err("ndp_code_invalid");
         }
         let minimum_length = if data[0] == 133 {
@@ -231,62 +373,84 @@ fn decode_icmpv6(out: &mut Observation, ip: &[u8], data: &[u8]) -> Result<(), &'
         } else {
             24
         };
-        if data.len() < minimum_length {
+        if rejected(data.len() < minimum_length, "ndp_short_message", trace) {
             return Err("ndp_short_message");
         }
         let source = &ip[8..24];
         let destination = &ip[24..40];
-        let source_link_option = ndp_has_source_link_option(data, minimum_length)?;
+        let source_link_option = ndp_has_source_link_option(data, minimum_length, offset, trace)?;
         match data[0] {
-            133 if unspecified_ipv6(source) && source_link_option => {
+            133 if rejected(
+                unspecified_ipv6(source) && source_link_option,
+                "ndp_unspecified_source_link_option",
+                trace,
+            ) =>
+            {
                 return Err("ndp_unspecified_source_link_option");
             }
-            134 if !link_local_ipv6(source) => {
+            134 if rejected(
+                !link_local_ipv6(source),
+                "ndp_router_source_not_link_local",
+                trace,
+            ) =>
+            {
                 return Err("ndp_router_source_not_link_local");
             }
             135 => {
-                if data[8] == 0xff {
+                if rejected(data[8] == 0xff, "ndp_multicast_target", trace) {
                     return Err("ndp_multicast_target");
                 }
                 if unspecified_ipv6(source) {
-                    if !solicited_node_multicast(destination) {
+                    if rejected(
+                        !solicited_node_multicast(destination),
+                        "ndp_unspecified_source_destination_invalid",
+                        trace,
+                    ) {
                         return Err("ndp_unspecified_source_destination_invalid");
                     }
-                    if source_link_option {
+                    if rejected(
+                        source_link_option,
+                        "ndp_unspecified_source_link_option",
+                        trace,
+                    ) {
                         return Err("ndp_unspecified_source_link_option");
                     }
                 }
             }
             136 => {
-                if data[8] == 0xff {
+                if rejected(data[8] == 0xff, "ndp_multicast_target", trace) {
                     return Err("ndp_multicast_target");
                 }
-                if destination[0] == 0xff && data[4] & 0x40 != 0 {
+                if rejected(
+                    destination[0] == 0xff && data[4] & 0x40 != 0,
+                    "ndp_solicited_multicast_advertisement",
+                    trace,
+                ) {
                     return Err("ndp_solicited_multicast_advertisement");
                 }
             }
             _ => {}
         }
     }
-    set(&mut out.seeds, node::ICMPV6);
-    set(&mut out.seeds, node::ICMPV6_CHECKSUM);
+    traced_set(&mut out.seeds, node::ICMPV6, trace);
+    traced_set(&mut out.seeds, node::ICMPV6_CHECKSUM, trace);
     match data[0] {
-        1..=4 => set(&mut out.seeds, node::ICMPV6_ERROR),
+        1..=4 => traced_set(&mut out.seeds, node::ICMPV6_ERROR, trace),
         133 => {
-            set(&mut out.seeds, node::NDP);
-            set(&mut out.seeds, node::ROUTER_SOLICITATION);
+            traced_set(&mut out.seeds, node::NDP, trace);
+            traced_set(&mut out.seeds, node::ROUTER_SOLICITATION, trace);
         }
         134 => {
-            set(&mut out.seeds, node::NDP);
-            set(&mut out.seeds, node::ROUTER_ADVERTISEMENT);
+            traced_set(&mut out.seeds, node::NDP, trace);
+            traced_set(&mut out.seeds, node::ROUTER_ADVERTISEMENT, trace);
         }
         135 => {
-            set(&mut out.seeds, node::NDP);
-            set(&mut out.seeds, node::NEIGHBOR_SOLICITATION);
+            traced_set(&mut out.seeds, node::NDP, trace);
+            traced_set(&mut out.seeds, node::NEIGHBOR_SOLICITATION, trace);
         }
         136 => {
-            set(&mut out.seeds, node::NDP);
-            set(&mut out.seeds, node::NEIGHBOR_ADVERTISEMENT);
+            traced_set(&mut out.seeds, node::NDP, trace);
+            traced_set(&mut out.seeds, node::NEIGHBOR_ADVERTISEMENT, trace);
         }
         _ => {
             out.reason = "icmpv6_unrepresented_type";
@@ -297,44 +461,70 @@ fn decode_icmpv6(out: &mut Observation, ip: &[u8], data: &[u8]) -> Result<(), &'
     Ok(())
 }
 
-fn decode_ipv4(out: &mut Observation, packet: &[u8]) -> Result<(), &'static str> {
-    if packet.len() < 20 {
+fn decode_ipv4(
+    out: &mut Observation,
+    packet: &[u8],
+    trace: &mut impl FnMut(ObserverStep),
+) -> Result<(), &'static str> {
+    trace(ObserverStep::Enter {
+        stage: "ipv4",
+        offset: 14,
+        length: packet.len(),
+    });
+    if rejected(packet.len() < 20, "ipv4_short_header", trace) {
         return Err("ipv4_short_header");
     }
-    if packet[0] >> 4 != 4 {
+    if rejected(packet[0] >> 4 != 4, "ipv4_bad_version", trace) {
         return Err("ipv4_bad_version");
     }
+    field(trace, "ipv4_ttl", packet[8] as usize);
+    field(trace, "ipv4_protocol", packet[9] as usize);
+    field(trace, "ipv4_fragment_field", word(packet, 6) as usize);
     let header = (packet[0] & 0x0f) as usize * 4;
+    field(trace, "ipv4_header_length", header);
     let total = word(packet, 2) as usize;
-    if header < 20 || header > packet.len() {
+    field(trace, "ipv4_total_length", total);
+    if rejected(
+        header < 20 || header > packet.len(),
+        "ipv4_header_length_invalid",
+        trace,
+    ) {
         return Err("ipv4_header_length_invalid");
     }
-    if total < header || total > packet.len() {
+    if rejected(
+        total < header || total > packet.len(),
+        "ipv4_total_length_invalid",
+        trace,
+    ) {
         return Err("ipv4_total_length_invalid");
     }
-    if !valid_checksum(&packet[..header]) {
+    if rejected(
+        !valid_checksum(&packet[..header]),
+        "ipv4_bad_header_checksum",
+        trace,
+    ) {
         return Err("ipv4_bad_header_checksum");
     }
-    set(&mut out.seeds, node::IPV4);
-    set(&mut out.seeds, node::IP_HEADER);
-    set(&mut out.seeds, node::IP_LENGTH);
-    set(&mut out.seeds, node::IP_CHECKSUM);
-    set(&mut out.seeds, node::IP_PROTOCOL);
-    set(&mut out.seeds, node::ENDPOINT_ADDRESSES);
+    traced_set(&mut out.seeds, node::IPV4, trace);
+    traced_set(&mut out.seeds, node::IP_HEADER, trace);
+    traced_set(&mut out.seeds, node::IP_LENGTH, trace);
+    traced_set(&mut out.seeds, node::IP_CHECKSUM, trace);
+    traced_set(&mut out.seeds, node::IP_PROTOCOL, trace);
+    traced_set(&mut out.seeds, node::ENDPOINT_ADDRESSES, trace);
     if packet[8] > 0 {
-        set(&mut out.seeds, node::IP_TTL);
+        traced_set(&mut out.seeds, node::IP_TTL, trace);
     }
     if word(packet, 6) & 0x3fff != 0 {
-        set(&mut out.seeds, node::IP_FRAGMENT);
+        traced_set(&mut out.seeds, node::IP_FRAGMENT, trace);
         out.kind = ObservationKind::Fragment;
         out.reason = "ipv4_fragment_requires_reassembly";
         return Ok(());
     }
     let data = &packet[header..total];
     match packet[9] {
-        17 => decode_udp(out, packet, data, false),
-        6 => decode_tcp(out, packet, data, false),
-        1 => decode_icmpv4(out, data),
+        17 => decode_udp(out, packet, data, false, 14 + header, trace),
+        6 => decode_tcp(out, packet, data, false, 14 + header, trace),
+        1 => decode_icmpv4(out, data, 14 + header, trace),
         _ => {
             out.reason = "ipv4_header_only_unrepresented_transport";
             Ok(())
@@ -342,50 +532,76 @@ fn decode_ipv4(out: &mut Observation, packet: &[u8]) -> Result<(), &'static str>
     }
 }
 
-fn decode_ipv6(out: &mut Observation, packet: &[u8]) -> Result<(), &'static str> {
-    if packet.len() < 40 {
+fn decode_ipv6(
+    out: &mut Observation,
+    packet: &[u8],
+    trace: &mut impl FnMut(ObserverStep),
+) -> Result<(), &'static str> {
+    trace(ObserverStep::Enter {
+        stage: "ipv6",
+        offset: 14,
+        length: packet.len(),
+    });
+    if rejected(packet.len() < 40, "ipv6_short_header", trace) {
         return Err("ipv6_short_header");
     }
-    if packet[0] >> 4 != 6 {
+    if rejected(packet[0] >> 4 != 6, "ipv6_bad_version", trace) {
         return Err("ipv6_bad_version");
     }
     let payload = word(packet, 4) as usize;
-    if 40 + payload > packet.len() {
+    field(trace, "ipv6_payload_length", payload);
+    field(trace, "ipv6_hop_limit", packet[7] as usize);
+    if rejected(
+        40 + payload > packet.len(),
+        "ipv6_payload_length_invalid",
+        trace,
+    ) {
         return Err("ipv6_payload_length_invalid");
     }
-    set(&mut out.seeds, node::IPV6);
-    set(&mut out.seeds, node::IPV6_PAYLOAD_LENGTH);
-    set(&mut out.seeds, node::IPV6_NEXT_HEADER);
-    set(&mut out.seeds, node::IPV6_HOP_LIMIT);
-    set(&mut out.seeds, node::IPV6_SOURCE);
-    set(&mut out.seeds, node::IPV6_DESTINATION);
+    traced_set(&mut out.seeds, node::IPV6, trace);
+    traced_set(&mut out.seeds, node::IPV6_PAYLOAD_LENGTH, trace);
+    traced_set(&mut out.seeds, node::IPV6_NEXT_HEADER, trace);
+    traced_set(&mut out.seeds, node::IPV6_HOP_LIMIT, trace);
+    traced_set(&mut out.seeds, node::IPV6_SOURCE, trace);
+    traced_set(&mut out.seeds, node::IPV6_DESTINATION, trace);
     let mut next = packet[6];
     let mut offset = 40usize;
     let end = 40 + payload;
     // Each recognized extension consumes at least eight bytes, so the
     // declared payload bounds this walk without an arbitrary header count.
     loop {
+        field(trace, "ipv6_next_header", next as usize);
+        field(trace, "ipv6_next_offset", 14 + offset);
         match next {
             0 | 43 | 60 => {
-                if next == 0 && offset != 40 {
+                if rejected(
+                    next == 0 && offset != 40,
+                    "ipv6_hop_by_hop_not_first",
+                    trace,
+                ) {
                     return Err("ipv6_hop_by_hop_not_first");
                 }
-                if offset + 2 > end {
+                if rejected(offset + 2 > end, "ipv6_extension_short_header", trace) {
                     return Err("ipv6_extension_short_header");
                 }
-                set(&mut out.seeds, node::IPV6_EXTENSION);
+                traced_set(&mut out.seeds, node::IPV6_EXTENSION, trace);
                 let length = (packet[offset + 1] as usize + 1) * 8;
-                if length < 8 || offset + length > end {
+                field(trace, "ipv6_extension_length", length);
+                if rejected(
+                    length < 8 || offset + length > end,
+                    "ipv6_extension_length_invalid",
+                    trace,
+                ) {
                     return Err("ipv6_extension_length_invalid");
                 }
                 next = packet[offset];
                 offset += length;
             }
             44 => {
-                if offset + 8 > end {
+                if rejected(offset + 8 > end, "ipv6_fragment_short_header", trace) {
                     return Err("ipv6_fragment_short_header");
                 }
-                set(&mut out.seeds, node::IPV6_FRAGMENT);
+                traced_set(&mut out.seeds, node::IPV6_FRAGMENT, trace);
                 out.kind = ObservationKind::Fragment;
                 out.reason = "ipv6_fragment_requires_reassembly";
                 return Ok(());
@@ -395,9 +611,9 @@ fn decode_ipv6(out: &mut Observation, packet: &[u8]) -> Result<(), &'static str>
     }
     let data = &packet[offset..end];
     match next {
-        17 => decode_udp(out, packet, data, true),
-        6 => decode_tcp(out, packet, data, true),
-        58 => decode_icmpv6(out, packet, data),
+        17 => decode_udp(out, packet, data, true, 14 + offset, trace),
+        6 => decode_tcp(out, packet, data, true, 14 + offset, trace),
+        58 => decode_icmpv6(out, packet, data, 14 + offset, trace),
         _ => {
             out.reason = "ipv6_header_only_unrepresented_transport";
             Ok(())
@@ -407,33 +623,61 @@ fn decode_ipv6(out: &mut Observation, packet: &[u8]) -> Result<(), &'static str>
 
 /// Decode only bounded wire structure. Payload text cannot select node IDs.
 pub fn decode(frame: &[u8]) -> Observation {
+    decode_traced(frame, &mut |_| {})
+}
+
+pub fn decode_traced(frame: &[u8], trace: &mut impl FnMut(ObserverStep)) -> Observation {
+    trace(ObserverStep::Enter {
+        stage: "ethernet",
+        offset: 0,
+        length: frame.len(),
+    });
+    let result = decode_inner(frame, trace);
+    trace(ObserverStep::Finish {
+        kind: result.kind,
+        reason: result.reason,
+        seeds: result.seeds,
+    });
+    result
+}
+fn decode_inner(frame: &[u8], trace: &mut impl FnMut(ObserverStep)) -> Observation {
     let mut out = Observation {
         kind: ObservationKind::Unknown,
         seeds: [0; NODE_WORDS],
         reason: "unparsed",
     };
-    if frame.len() < 14 {
+    if rejected(frame.len() < 14, "ethernet_short_frame", trace) {
         return malformed("ethernet_short_frame");
     }
     let ether_type = word(frame, 12);
+    field(trace, "ether_type", ether_type as usize);
     let packet = &frame[14..];
     let result = match ether_type {
         0x0806 => {
-            if packet.len() < 28
-                || word(packet, 0) != 1
-                || word(packet, 2) != 0x0800
-                || packet[4] != 6
-                || packet[5] != 4
-            {
+            trace(ObserverStep::Enter {
+                stage: "arp",
+                offset: 14,
+                length: packet.len(),
+            });
+            if rejected(
+                packet.len() < 28
+                    || word(packet, 0) != 1
+                    || word(packet, 2) != 0x0800
+                    || packet[4] != 6
+                    || packet[5] != 4,
+                "arp_structure_invalid",
+                trace,
+            ) {
                 Err("arp_structure_invalid")
             } else {
+                field(trace, "arp_operation", word(packet, 6) as usize);
                 match word(packet, 6) {
                     1 => {
-                        set(&mut out.seeds, node::ARP_REQUEST);
+                        traced_set(&mut out.seeds, node::ARP_REQUEST, trace);
                         out.reason = "arp_request_valid";
                     }
                     2 => {
-                        set(&mut out.seeds, node::ARP_REPLY);
+                        traced_set(&mut out.seeds, node::ARP_REPLY, trace);
                         out.reason = "arp_reply_valid";
                     }
                     _ => {
@@ -444,14 +688,18 @@ pub fn decode(frame: &[u8]) -> Observation {
                 Ok(())
             }
         }
-        0x0800 => decode_ipv4(&mut out, packet),
-        0x86dd => decode_ipv6(&mut out, packet),
+        0x0800 => decode_ipv4(&mut out, packet, trace),
+        0x86dd => decode_ipv6(&mut out, packet, trace),
         _ => {
             out.reason = "ethernet_unrepresented_ethertype";
             return out;
         }
     };
     if let Err(reason) = result {
+        trace(ObserverStep::Discard {
+            reason,
+            seeds: out.seeds,
+        });
         return malformed(reason);
     }
     if out.kind != ObservationKind::Fragment {
@@ -474,6 +722,41 @@ pub fn add_host_validated_symbol(observation: &mut Observation, symbol: usize) -
 mod tests {
     use super::*;
     use kernel_lightcone::bit;
+
+    #[test]
+    fn trace_returns_identical_observation_and_records_seed_discard() {
+        let (mut frame, length) = udp_frame(b"trace-fixture");
+        for count in 0..=length {
+            let mut last = None;
+            let got = decode_traced(&frame[..count], &mut |event| {
+                if let ObserverStep::Finish {
+                    kind,
+                    reason,
+                    seeds,
+                } = event
+                {
+                    last = Some(Observation {
+                        kind,
+                        reason,
+                        seeds,
+                    });
+                }
+            });
+            assert_eq!(got, decode(&frame[..count]));
+            assert_eq!(last, Some(got));
+        }
+        // IP validates and contributes seeds before invalid UDP length clears them.
+        frame[14 + 20 + 4] = 1;
+        let mut discarded = false;
+        let got = decode_traced(&frame[..length], &mut |event| {
+            if let ObserverStep::Discard { seeds, .. } = event {
+                discarded = seeds.iter().any(|word| *word != 0);
+            }
+        });
+        assert!(discarded);
+        assert_eq!(got.kind, ObservationKind::Malformed);
+        assert_eq!(got.seeds, [0; NODE_WORDS]);
+    }
 
     fn finish_checksum(bytes: &mut [u8], offset: usize) {
         bytes[offset] = 0;

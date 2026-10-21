@@ -67,6 +67,30 @@ pub struct Edge {
     pub polarity: i8,
     pub split: u8,
 }
+/// An observation of the actual admission implementation, never a policy input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AdmissionStep {
+    pub action: &'static str,
+    pub node: Option<u16>,
+    pub edge: Option<u16>,
+    pub neighbor: Option<u16>,
+    pub depth: Option<u8>,
+}
+fn step(
+    action: &'static str,
+    node: Option<u16>,
+    edge: Option<u16>,
+    neighbor: Option<u16>,
+    depth: Option<u8>,
+) -> AdmissionStep {
+    AdmissionStep {
+        action,
+        node,
+        edge,
+        neighbor,
+        depth,
+    }
+}
 impl<'a> World<'a> {
     pub fn load(data: &'a [u8], expected: [u8; 32]) -> Result<Self, Error> {
         if hash(data) != expected {
@@ -224,16 +248,29 @@ impl<'a> World<'a> {
         policy: Policy,
         query: [u8; 32],
     ) -> Result<Receipt, Error> {
+        self.admit_traced(seeds, policy, query, &mut |_| {})
+    }
+    /// Same admission path with an observation-only callback. No allocation.
+    pub fn admit_traced(
+        &self,
+        seeds: [u64; NODE_WORDS],
+        policy: Policy,
+        query: [u8; 32],
+        trace: &mut impl FnMut(AdmissionStep),
+    ) -> Result<Receipt, Error> {
         if policy.hops > 64
             || policy.max_nodes == 0
             || policy.max_nodes as usize > MAX_NODES
             || policy.relations & !31 != 0
             || ![-1, 0, 1].contains(&policy.polarity)
         {
+            trace(step("policy_rejected", None, None, None, None));
             return Err(Error::Policy);
         }
+        trace(step("policy_accepted", None, None, None, None));
         for i in self.n..MAX_NODES {
             if bit(&seeds, i) {
+                trace(step("seed_out_of_range", Some(i as u16), None, None, None));
                 return Err(Error::Index);
             }
         }
@@ -258,8 +295,10 @@ impl<'a> World<'a> {
                     set(&mut r.nodes, i);
                     queue[tail] = i as u16;
                     tail += 1;
+                    trace(step("seed_enqueued", Some(i as u16), None, None, Some(0)));
                 } else {
-                    set(&mut r.excluded, i)
+                    set(&mut r.excluded, i);
+                    trace(step("seed_node_cap", Some(i as u16), None, None, Some(0)));
                 }
             }
         }
@@ -267,9 +306,16 @@ impl<'a> World<'a> {
             let node = queue[head];
             let hop = depths[head];
             head += 1;
+            trace(step("visit", Some(node), None, None, Some(hop)));
             for i in 0..self.e {
                 let edge = self.edge(i)?;
                 if !eligible(edge, policy) {
+                    let action = if policy.relations & (1 << edge.relation) == 0 {
+                        "walk_relation_filtered"
+                    } else {
+                        "walk_polarity_filtered"
+                    };
+                    trace(step(action, Some(node), Some(i as u16), None, Some(hop)));
                     continue;
                 }
                 let neighbor = if edge.source == node && policy.direction != Direction::Past {
@@ -282,20 +328,55 @@ impl<'a> World<'a> {
                 if let Some(n) = neighbor {
                     let n = n as usize;
                     if bit(&r.nodes, n) {
+                        trace(step(
+                            "walk_already_admitted",
+                            Some(node),
+                            Some(i as u16),
+                            Some(n as u16),
+                            Some(hop),
+                        ));
                         continue;
                     }
                     if hop >= policy.hops {
                         set(&mut r.hop_frontier, n);
+                        trace(step(
+                            "walk_hop_limit",
+                            Some(node),
+                            Some(i as u16),
+                            Some(n as u16),
+                            Some(hop),
+                        ));
                         continue;
                     }
                     if tail >= policy.max_nodes as usize {
                         set(&mut r.excluded, n);
+                        trace(step(
+                            "walk_node_cap",
+                            Some(node),
+                            Some(i as u16),
+                            Some(n as u16),
+                            Some(hop),
+                        ));
                         continue;
                     }
                     set(&mut r.nodes, n);
                     queue[tail] = n as u16;
                     depths[tail] = hop + 1;
                     tail += 1;
+                    trace(step(
+                        "walk_enqueued",
+                        Some(node),
+                        Some(i as u16),
+                        Some(n as u16),
+                        Some(hop),
+                    ));
+                } else {
+                    let action = if edge.source == node || edge.target == node {
+                        "walk_direction_filtered"
+                    } else {
+                        "walk_not_incident"
+                    };
+                    trace(step(action, Some(node), Some(i as u16), None, Some(hop)));
                 }
             }
         }
@@ -307,14 +388,41 @@ impl<'a> World<'a> {
                 && bit(&r.nodes, edge.source as usize)
                 && bit(&r.nodes, edge.target as usize)
             {
-                set(&mut r.edges, i)
+                set(&mut r.edges, i);
+                trace(step(
+                    "final_edge_retained",
+                    None,
+                    Some(i as u16),
+                    None,
+                    None,
+                ));
+            } else {
+                let action = if !eligible(edge, policy) {
+                    "final_edge_policy_filtered"
+                } else {
+                    "final_edge_endpoint_absent"
+                };
+                trace(step(action, None, Some(i as u16), None, None));
             }
         }
         for j in 0..NODE_WORDS {
             r.excluded[j] &= !r.nodes[j];
             r.hop_frontier[j] &= !r.nodes[j];
         }
+        for node in 0..self.n {
+            let action = if bit(&r.nodes, node) {
+                "final_node_admitted"
+            } else if bit(&r.excluded, node) {
+                "final_node_cap"
+            } else if bit(&r.hop_frontier, node) {
+                "final_node_hop_limit"
+            } else {
+                "final_node_not_reached"
+            };
+            trace(step(action, Some(node as u16), None, None, None));
+        }
         r.digest = r.compute_digest();
+        trace(step("receipt_complete", None, None, None, None));
         Ok(r)
     }
 }
@@ -379,6 +487,56 @@ mod tests {
     fn world() -> World<'static> {
         World::load(embedded::PACK, embedded::HASH).unwrap()
     }
+    #[test]
+    fn trace_preserves_receipt_across_filters_caps_and_frontiers() {
+        let world = world();
+        let mut actions = BTreeSet::new();
+        for seed in 0..world.node_count() {
+            let mut seeds = [0; NODE_WORDS];
+            set(&mut seeds, seed);
+            for policy in [
+                Policy::NETWORK,
+                Policy {
+                    direction: Direction::Past,
+                    ..Policy::NETWORK
+                },
+                Policy {
+                    max_nodes: 1,
+                    ..Policy::NETWORK
+                },
+                Policy {
+                    hops: 0,
+                    ..Policy::NETWORK
+                },
+                Policy {
+                    relations: 1,
+                    polarity: -1,
+                    direction: Direction::Past,
+                    ..Policy::NETWORK
+                },
+            ] {
+                let expected = world.admit(seeds, policy, [7; 32]).unwrap();
+                let observed = world
+                    .admit_traced(seeds, policy, [7; 32], &mut |event| {
+                        actions.insert(event.action);
+                    })
+                    .unwrap();
+                assert_eq!(expected, observed);
+            }
+        }
+        for action in [
+            "walk_node_cap",
+            "walk_hop_limit",
+            "walk_relation_filtered",
+            "walk_polarity_filtered",
+            "walk_direction_filtered",
+            "final_edge_retained",
+            "receipt_complete",
+        ] {
+            assert!(actions.contains(action), "missing branch: {action}");
+        }
+    }
+
     #[test]
     fn integrity_and_untrusted_pack_bounds() {
         assert_eq!(

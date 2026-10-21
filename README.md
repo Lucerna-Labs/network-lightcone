@@ -1,5 +1,10 @@
 # Network Lightcone standalone project
 
+Latest experiment: [all three concept tests](CONCEPT-RESULTS.md), with the world
+held fixed. Exact graph admission works; learned coordinates are not used by the
+packet-admission path; the downstream comparison measured context reduction but
+no accuracy gain on its sixteen protocol questions. No world rebuild was performed.
+
 This project is the standalone network-specific Lightcone derived from Atom OS
 source snapshot `db5f6624ac35ebe040d769511555f41fa2923c14`.
 
@@ -31,6 +36,10 @@ python3 network-lightcone/tests/evaluate_defense_challenges.py
 ```
 
 The active pack reports `platform=local_diagnostic` and `sealed=false`.
+The copied project's [covered-scope evaluation](COVERED-SCOPE-RESULTS.md) passed
+162 wire cases, 42 checksum-complete live frames and all 208 native concept
+queries. It also exposed three unqualified IPv4 prerequisites in IPv6 context;
+that curation failure remains recorded and unfixed.
 The synthetic structural challenge records a 60% zero-admission fraction for
 unrepresented observations and explicitly records the remaining 40% as probes
 that share represented causal protocol symbols. That challenge checks the
@@ -41,6 +50,11 @@ Current evidence and known gaps are recorded in
 `network-lightcone/receipts/v4-local-validation-20260923.md`.
 
 ## Detailed observation logs
+
+The experimental copy now records parser checks and actual admission decisions
+end to end. See [logging results and examples](TRACE-RESULTS.md) and the
+[trace verifier instructions](network-replay/README.md). The original project
+and trained world remain unchanged; usefulness is still an open evaluation.
 
 ```sh
 cargo run -p network-lightcone-replay --offline -- \
