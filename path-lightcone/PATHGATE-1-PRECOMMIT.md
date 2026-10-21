@@ -108,3 +108,36 @@ packet.
   untested.
 - The hub's forwarding role and the outbound direction come next, then the VM matrix. The Imperium
   constraints stand until that matrix passes.
+
+---
+
+# PATHGATE-2: every role, both directions (namespace lab)
+
+**Status: PRECOMMITTED, 2026-10-21, before any PATHGATE-2 code.**
+
+## Changes
+
+- **The role is an argument:** hub, source or receiver. Each role gets its own run-6 allow and deny
+  worlds.
+- **Outbound:** recorded outbound IP packets are sent from inside the namespace by a raw IP socket
+  (header included, bound to `pg0`), so they cross the kernel's **OUTPUT** hook.
+  - The gate's queue sits at OUTPUT (priority −300, `oifname "pg0"`, no bypass).
+  - The observer's queue sits at POSTROUTING (priority −200, with bypass).
+  - The gate judges with hook 3, so the direction is outbound.
+- **Inbound** is as in PATHGATE-1, at PREROUTING.
+  - At the hub, forwarded packets are judged once, at entry: the hub's world holds both captured
+    copies.
+- **The packet identity hash ignores the IPv4 ID and header checksum,** which the kernel may fill
+  in for a header-included send.
+
+## Predictions, per role and direction
+
+- **G1:** the kernel outcome equals the offline verdict on 100% of frames.
+- **G2:** positives pass at ≥ 0.94.
+- **G3:** each mutation class is dropped at ≥ 0.99.
+- **G4:** no reader → 0 pass; reader exited → 0 pass.
+- **G5:** with the gate chain removed, all positives reach the observer.
+- **G6:** the median verdict is < 100 µs.
+
+A positive the raw socket cannot send (the kernel refuses it) is counted and reported, not
+dropped silently.
