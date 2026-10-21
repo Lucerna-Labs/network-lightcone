@@ -99,6 +99,114 @@ dependencies = [
 ]
 
 [[package]]
+name = "path-admit"
+version = "0.1.0"
+dependencies = [
+ "path-sense",
+ "path-world",
+]
+
+[[package]]
+name = "path-frame"
+version = "0.1.0"
+dependencies = [
+ "path-sense",
+]
+
+[[package]]
+name = "path-inject"
+version = "0.1.0"
+
+[[package]]
+name = "path-nibble"
+version = "0.1.0"
+dependencies = [
+ "path-sense",
+]
+
+[[package]]
+name = "path-queue"
+version = "0.1.0"
+
+[[package]]
+name = "path-sense"
+version = "0.1.0"
+
+[[package]]
+name = "path-world"
+version = "0.1.0"
+dependencies = [
+ "path-sense",
+]
+
+[[package]]
+name = "pathcone1"
+version = "0.1.0"
+dependencies = [
+ "path-admit",
+ "path-sense",
+ "path-world",
+]
+
+[[package]]
+name = "pathcone2"
+version = "0.1.0"
+dependencies = [
+ "path-admit",
+ "path-sense",
+ "path-world",
+]
+
+[[package]]
+name = "pathcone3"
+version = "0.1.0"
+dependencies = [
+ "path-admit",
+ "path-nibble",
+ "path-sense",
+ "path-world",
+]
+
+[[package]]
+name = "pathcone4"
+version = "0.1.0"
+dependencies = [
+ "path-admit",
+ "path-sense",
+ "path-world",
+]
+
+[[package]]
+name = "pathcone5"
+version = "0.1.0"
+dependencies = [
+ "path-admit",
+ "path-sense",
+ "path-world",
+]
+
+[[package]]
+name = "pathcone6"
+version = "0.1.0"
+dependencies = [
+ "path-admit",
+ "path-sense",
+ "path-world",
+]
+
+[[package]]
+name = "pathgate"
+version = "0.1.0"
+dependencies = [
+ "path-admit",
+ "path-frame",
+ "path-inject",
+ "path-queue",
+ "path-sense",
+ "path-world",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
