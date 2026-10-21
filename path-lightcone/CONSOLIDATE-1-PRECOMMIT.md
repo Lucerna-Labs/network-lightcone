@@ -85,3 +85,26 @@ learned the class itself. Where any widening appears, it is recorded exactly.
 
 **Settings:** `min_distinct 3`, `ephemeral_fraction 0.8` (run 6); 3 learning episodes; attacker
 frames 5 per kind per episode.
+
+## Correction (2026-10-21, before any `path-self` or `path-consolidate` code)
+
+**The hole:** as first written, `own_address` would make nearly every outbound packet "self". That
+includes a compromised process on the host sending to a new port, which would then be learned
+automatically: the exfiltration case.
+
+**Corrected law: a cause must explain the novelty itself.** A dropped path is self-caused only when
+it **matches a trained path everywhere except its source address**, and that source is self:
+- **`own_address`:** outbound, and the source is one of this host's own addresses in the episode's
+  snapshot.
+- **`authenticated_tunnel`:** inbound on a TUN interface. The source is then a peer that the mesh
+  has authenticated.
+
+**Everything else is `unexplained`** and is never consolidated automatically. That covers a novel
+port, a novel destination, a novel protocol, and anything arriving on a physical link.
+
+This needs one new, read-only world function, `World::matches_except(path, free_positions)`: a
+match that accepts any value at the given positions. The world's law is unchanged.
+
+The predictions stand, with `own_address` and `authenticated_tunnel` read in this corrected sense.
+**C2's "every self-caused drop" means every *explained* one.** Self-sourced drops whose novelty is
+elsewhere are reported as `unexplained`.
