@@ -118,6 +118,13 @@ name = "path-inject"
 version = "0.1.0"
 
 [[package]]
+name = "path-pack"
+version = "0.1.0"
+dependencies = [
+ "path-sense",
+]
+
+[[package]]
 name = "path-queue"
 version = "0.1.0"
 
@@ -151,6 +158,14 @@ dependencies = [
  "path-queue",
  "path-sense",
  "path-world",
+]
+
+[[package]]
+name = "pathpack"
+version = "0.1.0"
+dependencies = [
+ "path-pack",
+ "path-sense",
 ]
 
 [[package]]

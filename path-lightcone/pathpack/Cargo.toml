@@ -1,0 +1,9 @@
+[package]
+name = "pathpack"
+version = "0.1.0"
+edition = "2021"
+description = "PATHCONE: build a role's training pack from recorded packets (PATHCONE-1's split)."
+
+[dependencies]
+path-sense = { path = "../path-sense" }
+path-pack = { path = "../path-pack" }
