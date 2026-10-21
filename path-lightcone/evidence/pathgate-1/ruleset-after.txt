@@ -1,0 +1,6 @@
+table inet pathgate {
+	chain observe {
+		type filter hook prerouting priority -200; policy accept;
+		iifname "pg1" queue flags bypass to 12
+	}
+}

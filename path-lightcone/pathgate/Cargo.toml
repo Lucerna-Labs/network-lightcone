@@ -1,0 +1,13 @@
+[package]
+name = "pathgate"
+version = "0.1.0"
+edition = "2021"
+description = "PATHGATE-1 orchestrator: the run-6 trained-path world as a fail-closed kernel queue verdict (lab only)."
+
+[dependencies]
+path-sense = { path = "../path-sense" }
+path-world = { path = "../path-world" }
+path-admit = { path = "../path-admit" }
+path-queue = { path = "../path-queue" }
+path-frame = { path = "../path-frame" }
+path-inject = { path = "../path-inject" }

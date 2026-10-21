@@ -1,0 +1,7 @@
+[package]
+name = "path-queue"
+version = "0.1.0"
+edition = "2021"
+description = "PATHGATE: the fail-closed NFQUEUE kernel transport (recovered from Imperium 2bb1e8c); mechanism only, zero dependencies."
+
+[dependencies]

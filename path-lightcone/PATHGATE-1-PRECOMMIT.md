@@ -58,3 +58,53 @@ only if the gate releases it.
 - **G5, baseline:** with the gate chain removed, every frame reaches the observer, which proves the
   injection path itself works.
 - **G6, latency:** the median verdict time (receive → finish) is below 100 µs.
+
+## Results (2026-10-21, `evidence/pathgate-1/`): 6 of 6 hold
+
+**Command:** `unshare -Urn sh scripts/pathgate-lab.sh <pathgate> <imperium evidence> evidence/pathgate-1`.
+- It ran in a private user + network namespace, with no host firewall, route or interface touched.
+- The kernel loaded its standard `nft_queue` module on demand (the first namespace test).
+
+| phase | frames injected | reached the observer | expected |
+|---|---|---|---|
+| no gate reader (queue rule, no bypass) | 176 positives | **0** | 0 (G4) |
+| gate running | 176 positives | **175 (0.9943)** | ≥ 0.94 (G2) |
+| | 164 port mutations | **0** | ≥ 0.99 dropped (G3) |
+| | 175 address mutations | **0** | |
+| | 164 protocol swaps | **0** | |
+| gate exited (rule kept) | 176 positives | **0** | 0 (G4) |
+| gate chain removed | 176 positives | **176** | all (G5) |
+
+- **G1, agreement:** in the gate phase, the kernel outcome equals the offline verdict for **679 of
+  679** frames. The one positive the world drops offline is the one the kernel dropped.
+- **G6, latency:** the median verdict (receive → finish, including the kernel acknowledgement) is
+  **16.0 µs**, and the p99 is 47.9 µs, over 680 verdicts.
+  - The 680th was the veth's own IPv6 autoconfiguration packet. It is untrained, so it was
+    discarded.
+
+### A defect found and fixed in the recovered transport
+
+The first lab run passed nothing, even with the gate removed, because both readers refused every
+packet.
+
+**The cause:**
+- The kernel sets `nlmsg_len` to the unpadded length, so the last netlink message and its final
+  attribute (the packet payload) end without alignment padding whenever the packet's length is
+  not a multiple of 4.
+- The Imperium transport required that padding.
+- Its 2026-10-01 lab sent only 84-byte pings, which are aligned, so it never met the case.
+
+**The fix,** an in-place change to code that had never worked for that case:
+- padding is required only where bytes follow;
+- a length past the end is still refused;
+- a new unit test pins the kernel's unpadded format;
+- the three original adversarial codec tests still pass.
+
+### What this does not yet cover
+
+- **IP only:** ARP and other L2 frames don't pass through NFQUEUE.
+- **Inbound only:** at prerouting, for one role (the receiver).
+- **Replayed frames, not live connections:** checksum offload, GSO and real TUN/mesh passage are
+  untested.
+- The hub's forwarding role and the outbound direction come next, then the VM matrix. The Imperium
+  constraints stand until that matrix passes.

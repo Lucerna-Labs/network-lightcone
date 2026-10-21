@@ -1,0 +1,7 @@
+[package]
+name = "path-inject"
+version = "0.1.0"
+edition = "2021"
+description = "PATHGATE lab: send a raw Ethernet frame on one interface with a packet socket (mechanism only)."
+
+[dependencies]
