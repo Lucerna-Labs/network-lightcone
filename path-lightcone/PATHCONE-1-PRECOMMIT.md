@@ -352,3 +352,43 @@ universal, never ephemeral. Everything else is run 5's.
   identities from throwaway ports.
 
 That open question goes to Jesse: should a neighbour-discovery sender fold, or stay exact?
+
+## Run 6: results (2026-10-21, `evidence/pathcone-1-run6/`): 8 of 8 hold
+
+| role | held-out pass (no folding) | wildcards | mutations dropped | deny wrongly drops |
+|---|---|---|---|---|
+| hub | 0.9465 (0.3174) | src 1, sport 13, dport 11 | 1.000 every class (n 796–832) | 0 |
+| source | 0.9443 (0.2668) | sport 6, dport 6 | 1.000 every class (n 475–492) | 0 |
+| receiver | 0.9463 (0.2841) | sport 6, dport 6 | 1.000 every class (n 475–493) | 0 |
+
+- Speed: **6.9 M admissions/s** on one thread.
+- Every prediction holds: P1, P3, P4, P5, P6, P7, P8a and P8b.
+- **As predicted,** the hub keeps one address wildcard: under (inbound, ICMPv6), the link-local
+  neighbour-discovery senders. **That is the open question for Jesse.**
+
+**What the world is now:** the trained paths, with exactly two kinds of position learned as
+open:
+- the **throwaway port** of each conversation (sport for outbound flows, dport for replies), learned
+  by the context law;
+- at the hub only, the neighbour-discovery sender.
+
+**Everything else must match a trained value exactly:** direction, link, protocol, both addresses,
+service ports, TCP flag sets, ICMP types.
+
+**What still does not pass (about 5.4% of held-out packets):**
+- one-example paths: each arm's loopback control flow (`lo`, one ephemeral port → 41000);
+- the MLD/RS packets of the tunnel interfaces' fresh random link-local IDs at each restart;
+- a few single neighbour-discovery pairs.
+
+**Each was seen once or never in training, so dropping them is Jesse's restraint working as
+designed.** Learning them needs more training arms (more restarts), not a looser law.
+
+**The PATHCONE-1 chain of laws:**
+1. volatility (run 1): over-folds;
+2. time recurrence (runs 2–3): blind in a 10 ms capture;
+3. context count (run 4): breaks at a forwarder;
+4. context below min_distinct (run 5): folds closed fields;
+5. **context relative to the field (run 6): holds.**
+
+**Next:** rung 2. Put `path-admit` in the packet path as a fail-closed verdict in the namespace lab,
+then the VM matrix.

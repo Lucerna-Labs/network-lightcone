@@ -362,6 +362,9 @@ pub struct CtxFold {
     pub min_distinct: usize,
     pub ephemeral_fraction: f64,
     pub ephemeral_below: usize,
+    /// Run 6: measure "few" against the contexts the field occurs in at all (a value following
+    /// every context of its field is universal, never ephemeral).
+    pub relative_to_field: bool,
 }
 
 impl World {
@@ -376,6 +379,11 @@ impl World {
                 parents.entry(*s).or_default().insert(raw_trail[i][d]);
             }
         }
+        let mut field_parents: HashMap<u8, HashSet<usize>> = HashMap::new();
+        for (s, h) in &parents {
+            field_parents.entry(s.field).or_default().extend(h.iter().copied());
+        }
+        let below = |s: &Sym| if fold.relative_to_field { fold.ephemeral_below.min(field_parents[&s.field].len()) } else { fold.ephemeral_below };
         let ctx: HashMap<Sym, usize> = parents.into_iter().map(|(s, h)| (s, h.len())).collect();
         let mut ps: Vec<Path> = paths.to_vec();
         let mut folds = 0;
@@ -391,7 +399,7 @@ impl World {
             for (id, n) in nodes.iter().enumerate() {
                 let kids: Vec<&Sym> = n.children.keys().filter(|s| s.value != WILD).collect();
                 if kids.len() >= fold.min_distinct {
-                    let eph = kids.iter().filter(|s| ctx[**s] < fold.ephemeral_below).count();
+                    let eph = kids.iter().filter(|s| ctx[**s] < below(s)).count();
                     if eph as f64 >= fold.ephemeral_fraction * kids.len() as f64 {
                         eligible.push((id, depth[&id]));
                     }
@@ -427,10 +435,33 @@ mod context_tests {
                 train.push(p(40000 + k, 46000 + k % 2, f));
             }
         }
-        let w = World::train_context(&train, CtxFold { min_distinct: 3, ephemeral_fraction: 0.8, ephemeral_below: 2 });
+        let w = World::train_context(&train, CtxFold { min_distinct: 3, ephemeral_fraction: 0.8, ephemeral_below: 2, relative_to_field: false });
         let ff = w.folded_fields();
         assert!(ff.contains_key(&5) && !ff.contains_key(&6) && !ff.contains_key(&7), "{ff:?}");
         assert!(w.matches(&p(49999, 46001, 18)));
         assert!(!w.matches(&p(49999, 46002, 18)) && !w.matches(&p(49999, 46000, 1)));
+    }
+}
+
+#[cfg(test)]
+mod relative_tests {
+    use super::*;
+
+    #[test]
+    fn a_closed_field_under_a_two_valued_parent_does_not_fold() {
+        // Direction (0) has two values; three link types (1) follow both: universal, not ephemeral.
+        let p = |d: u128, l: u128, port: u128| vec![Sym { field: 0, value: d }, Sym { field: 1, value: l }, Sym { field: 5, value: port }];
+        let mut train = Vec::new();
+        for d in 0..2 {
+            for l in [0x0800u128, 0x86dd, 0x0806] {
+                for k in 0..4 {
+                    train.push(p(d, l, 40000 + 10 * l + k + 100 * d));
+                }
+            }
+        }
+        let abs = World::train_context(&train, CtxFold { min_distinct: 3, ephemeral_fraction: 0.8, ephemeral_below: 3, relative_to_field: false });
+        assert!(abs.folded_fields().contains_key(&1), "run 5's over-fold");
+        let rel = World::train_context(&train, CtxFold { min_distinct: 3, ephemeral_fraction: 0.8, ephemeral_below: 3, relative_to_field: true });
+        assert!(!rel.folded_fields().contains_key(&1) && rel.folded_fields().contains_key(&5));
     }
 }

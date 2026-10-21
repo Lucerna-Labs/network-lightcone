@@ -1,0 +1,32 @@
+PATHCONE-1 run 6: context folding CtxFold { min_distinct: 3, ephemeral_fraction: 0.8, ephemeral_below: 3, relative_to_field: true }, top-down, raw paths; train attempts < 6
+[hub] train 777 (25 folds; wildcards per original field {3: 1, 5: 13, 6: 11})
+   held-out legitimate 879: pass 0.9465 (no folding 0.3174); excluding 0 untrained-service packets: pass 0.9465
+   UDP 41000 (the tunnel port; trained service true): held-out packets dropped 20 of 264
+   held-out misses by case: {"loopback_udp6": 3, "background": 41, "loopback_udp4": 3}
+   mutations dropped: exact port 1.0000 (n 796), exact address 1.0000 (n 832), protocol swap 1.0000 (n 796), direction flip (end hosts) 0.0000 (n 0)
+   deny world (714 paths): catches 244 of 796 held-out class (a); legitimate packets it would wrongly drop: 0
+[source] train 468 (12 folds; wildcards per original field {5: 6, 6: 6})
+   held-out legitimate 521: pass 0.9443 (no folding 0.2668); excluding 0 untrained-service packets: pass 0.9443
+   UDP 41000 (the tunnel port; trained service true): held-out packets dropped 20 of 142
+   held-out misses by case: {"background": 29}
+   mutations dropped: exact port 1.0000 (n 475), exact address 1.0000 (n 492), protocol swap 1.0000 (n 475), direction flip (end hosts) 1.0000 (n 492)
+   deny world (441 paths): catches 122 of 475 held-out class (a); legitimate packets it would wrongly drop: 0
+[receiver] train 472 (12 folds; wildcards per original field {5: 6, 6: 6})
+   held-out legitimate 521: pass 0.9463 (no folding 0.2841); excluding 0 untrained-service packets: pass 0.9463
+   UDP 41000 (the tunnel port; trained service true): held-out packets dropped 20 of 142
+   held-out misses by case: {"background": 28}
+   mutations dropped: exact port 1.0000 (n 475), exact address 1.0000 (n 493), protocol swap 1.0000 (n 475), direction flip (end hosts) 1.0000 (n 493)
+   deny world (441 paths): catches 130 of 475 held-out class (a); legitimate packets it would wrongly drop: 0
+(P2 withdrawn) phase-1 probe to UDP 45999, a trained service here: passes [false]
+P7 speed: 6945189 admissions per second (one thread)
+
+HOLDS  P1 held-out pass >= 0.94 every role
+HOLDS  P3 exact-field mutations stopped (each class >= 0.99)
+HOLDS  P4 fail-closed
+HOLDS  P5 folding load-bearing (>= 0.2 gain)
+HOLDS  P6 the deny world harms no legitimate packet
+HOLDS  P7 >= 5,000,000 admissions per second
+HOLDS  P8a no TCP-flag and no link wildcard, every role
+HOLDS  P8b no address wildcard on the end hosts
+
+8 of 8 hold

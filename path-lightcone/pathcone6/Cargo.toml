@@ -1,0 +1,10 @@
+[package]
+name = "pathcone6"
+version = "0.1.0"
+edition = "2021"
+description = "PATHCONE-1 run 6 orchestrator: context folding relative to the field."
+
+[dependencies]
+path-sense = { path = "../path-sense" }
+path-world = { path = "../path-world" }
+path-admit = { path = "../path-admit" }

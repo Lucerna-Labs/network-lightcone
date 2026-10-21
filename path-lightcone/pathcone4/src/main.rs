@@ -9,7 +9,7 @@ use path_sense::{sense, Path, Sym, F_DIR, F_DPORT, F_DST, F_L4, F_SPORT, F_SRC, 
 use path_world::{CtxFold, World};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-const FOLD: CtxFold = CtxFold { min_distinct: 3, ephemeral_fraction: 0.8, ephemeral_below: 2 };
+const FOLD: CtxFold = CtxFold { min_distinct: 3, ephemeral_fraction: 0.8, ephemeral_below: 2, relative_to_field: false };
 const TRAIN_ATTEMPTS: u32 = 6;
 const ROLES: [&str; 3] = ["hub", "source", "receiver"];
 const UNTRAINED_SERVICE_PROBE: u128 = 41000;

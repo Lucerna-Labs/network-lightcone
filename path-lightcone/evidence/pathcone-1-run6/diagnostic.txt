@@ -1,0 +1,21 @@
+   [diag] wildcard (flag/address/link) after 0:1 1:86dd 2:3a (0 exact siblings)
+[hub] train 777 (25 folds; wildcards per original field {3: 1, 5: 13, 6: 11})
+   [diag] missed (trained service) x20: 0:0 1:800 2:11 3:c0000201 4:c0000201 5:bae9 6:a028
+   [diag] missed (trained service) x4: 0:0 1:86dd 2:0 3:fe800000000000003f7f0c645ab7a0cc 4:ff020000000000000000000000000016
+   [diag] missed (trained service) x4: 0:1 1:86dd 2:0 3:fe800000000000001da76054b9a5150b 4:ff020000000000000000000000000016
+   [diag] missed (trained service) x4: 0:0 1:86dd 2:0 3:fe800000000000002cafd18ebd508e12 4:ff020000000000000000000000000016
+   [diag] missed (trained service) x3: 0:0 1:86dd 2:3a 3:fe800000000000002cafd18ebd508e12 4:ff020000000000000000000000000002 8:8500
+   [diag] missed (trained service) x3: 0:0 1:86dd 2:3a 3:fe800000000000003f7f0c645ab7a0cc 4:ff020000000000000000000000000002 8:8500
+   [diag] missed (trained service) x1: 0:0 1:86dd 2:11 3:1 4:1 5:b3ad 6:8efb
+   [diag] missed (trained service) x1: 0:0 1:86dd 2:11 3:1 4:1 5:b3ad 6:b1b1
+[source] train 468 (12 folds; wildcards per original field {5: 6, 6: 6})
+   [diag] missed (trained service) x20: 0:0 1:800 2:11 3:c0000202 4:c0000202 5:b436 6:a028
+   [diag] missed (trained service) x4: 0:1 1:86dd 2:0 3:fe800000000000003f7f0c645ab7a0cc 4:ff020000000000000000000000000016
+   [diag] missed (trained service) x3: 0:1 1:86dd 2:3a 3:fe800000000000003f7f0c645ab7a0cc 4:ff020000000000000000000000000002 8:8500
+   [diag] missed (trained service) x1: 0:1 1:86dd 2:3a 3:fe80000000000000505400fffe770002 4:fe80000000000000505400fffe770001 8:8800
+   [diag] missed (trained service) x1: 0:0 1:86dd 2:3a 3:fe80000000000000505400fffe770001 4:fe80000000000000505400fffe770002 8:8700
+[receiver] train 472 (12 folds; wildcards per original field {5: 6, 6: 6})
+   [diag] missed (trained service) x20: 0:0 1:800 2:11 3:c6336402 4:c6336402 5:9407 6:a028
+   [diag] missed (trained service) x4: 0:1 1:86dd 2:0 3:fe800000000000002cafd18ebd508e12 4:ff020000000000000000000000000016
+   [diag] missed (trained service) x3: 0:1 1:86dd 2:3a 3:fe800000000000002cafd18ebd508e12 4:ff020000000000000000000000000002 8:8500
+   [diag] missed (trained service) x1: 0:0 1:86dd 2:3a 3:fe80000000000000505400fffe780001 4:fd780000000000000000000000000002 8:8700
