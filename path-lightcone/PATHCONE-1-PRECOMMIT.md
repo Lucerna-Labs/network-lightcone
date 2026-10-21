@@ -271,3 +271,42 @@ one context is incidental.
 - **P6:** the deny world harms 0 legitimate packets.
 - **P7:** ≥ 5 M/s.
 - **P8:** **no TCP-flag wildcard and no address wildcard.**
+
+## Run 4: results (2026-10-21, `evidence/pathcone-1-run4/`)
+
+| role | held-out pass | wildcards | mutations dropped | deny wrongly drops |
+|---|---|---|---|---|
+| hub | **0.5074** (no folding 0.3174) | src 1, sport 1, dport 3 | 1.000 every class | 0 |
+| source | 0.9443 | sport 6, dport 6 | 1.000 every class | 0 |
+| receiver | 0.9463 | sport 6, dport 6 | 1.000 every class | 0 |
+
+- Speed: 5.7 M/s.
+- **4 of 7 hold:** P3, P4, P6 and P7.
+- **P1, P5 and P8 FAIL, all at the hub.**
+
+**What worked:** on both end hosts the context law gives the same pass as run 2/3, but with **no
+TCP-flag wildcard and no address wildcard**. That is the structurally clean world P8 asked for.
+
+**Diagnosis of the hub (after the run):** the hub forwards.
+- Each forwarded packet is captured twice: in on one link, out on the other, with a different
+  direction symbol.
+- So a throwaway port follows **2** raw contexts, never 1. The ports fail to fold, and the whole
+  hub world stays nearly strict.
+- The single address wildcard is a node where 3 of the hub's own one-context addresses met.
+
+## Run 5: PRECOMMITTED (2026-10-21), before any run-5 code
+
+**One change:** a value is ephemeral when its context count is **below min_distinct** (fewer than
+3), instead of exactly 1.
+- One setting now says both "many values" and "few contexts", so the law is symmetric: a position
+  is volatile when it takes ≥ m values that each follow < m contexts.
+- Everything else is run 4's.
+
+**Predictions:**
+- **P1:** held-out pass ≥ 0.94 on every role.
+- **P3:** each exact-field mutation class is dropped at ≥ 0.99.
+- **P4:** fail-closed.
+- **P5:** folding is load-bearing (≥ 0.2 gain on every role).
+- **P6:** the deny world harms 0 legitimate packets.
+- **P7:** ≥ 5 M/s.
+- **P8:** no TCP-flag wildcard and no address wildcard, **on every role, the hub included**.
