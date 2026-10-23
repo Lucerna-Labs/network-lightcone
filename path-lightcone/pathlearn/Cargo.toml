@@ -1,0 +1,9 @@
+[package]
+name = "pathlearn"
+version = "0.1.0"
+edition = "2021"
+description = "LEARN-HOST-1: turn finished hourly captures into the host's training pack (paths only), deleting each capture once read."
+
+[dependencies]
+path-sense = { path = "../path-sense" }
+path-pack = { path = "../path-pack" }

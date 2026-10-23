@@ -191,6 +191,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "pathlearn"
+version = "0.1.0"
+dependencies = [
+ "path-pack",
+ "path-sense",
+]
+
+[[package]]
 name = "pathpack"
 version = "0.1.0"
 dependencies = [
