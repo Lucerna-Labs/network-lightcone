@@ -31,3 +31,28 @@
   unprivileged.
 
 **Switching to enforcement is a separate, explicit yes from Jesse, after he reviews the report.**
+
+## Running (2026-10-23)
+
+**Two setup fixes before it ran:**
+1. **AppArmor's tcpdump profile denies hidden home folders** (`audit deny @{HOME}/.*/**`) and gives
+   root no DAC override into Jesse's folders, so the first start failed with `Permission denied`.
+   **AppArmor was not changed.** The capture now runs **as Jesse** with only `CAP_NET_RAW` and
+   `CAP_NET_ADMIN` (`systemd-run -p User=jesse -p AmbientCapabilities=...`, no `-Z`), and writes to
+   a plain private folder, `~/lightcone-learn` (`0700`).
+2. **The file name came out as a literal `cap-%Y%m%d-%H%M%S.pcap`.** Newer `systemd-run` already
+   escapes `%`, so my doubled `%%` reached tcpdump, whose `strftime` turned it into a literal `%`.
+   Every hourly rotation would have overwritten the same file. Fixed with single `%`; the first
+   minutes of capture were kept by renaming.
+
+**The service now:** `sudo systemd-run --unit=lightcone-learn -p User=jesse -p
+AmbientCapabilities="CAP_NET_RAW CAP_NET_ADMIN" tcpdump -i any -s 128 -n -U -G 3600 -w
+'/home/jesse/lightcone-learn/cap-%Y%m%d-%H%M%S.pcap' 'ip or ip6'`. Stop it with
+`sudo systemctl stop lightcone-learn`.
+
+**First learner run (6½ minutes of real traffic):**
+- 24,518 packets, every one with a path, giving **1,440 distinct paths** in `host.pathpack`;
+- the capture was deleted after reading, and the live file was left alone (H2 holds so far).
+
+**Readiness:** DNS, IPv6 RS/RA and NA are present. **DHCP is missing**, as expected: no renewal
+yet. **IPv6 NS is missing** so far. Learning continues for at least a day.
