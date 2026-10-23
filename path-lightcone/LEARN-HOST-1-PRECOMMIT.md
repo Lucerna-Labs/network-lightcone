@@ -56,3 +56,21 @@ AmbientCapabilities="CAP_NET_RAW CAP_NET_ADMIN" tcpdump -i any -s 128 -n -U -G 3
 
 **Readiness:** DNS, IPv6 RS/RA and NA are present. **DHCP is missing**, as expected: no renewal
 yet. **IPv6 NS is missing** so far. Learning continues for at least a day.
+
+## Browsing and the hourly learner (2026-10-23)
+
+**Browsing, Jesse's idea:** about 25 ordinary sites in the built-in browser. It only read pages: no
+logins, forms, downloads or consent clicks, and a bot challenge was left alone. The traffic covered
+HTTPS over TCP and QUIC, plain HTTP, video, maps, search, CDNs and raw GitHub.
+- In about 26 minutes: **514,755 packets, giving 7,572 distinct paths** (was 1,440).
+- **DHCP is now present.** IPv6 NS is still missing, as expected: it is rare when neighbours are
+  cached.
+
+**The hourly learner (Jesse: "Hourly timer"):** a user-level systemd timer with no root,
+`~/.config/systemd/user/lightcone-pathlearn.{service,timer}`.
+- It runs `~/.local/bin/pathlearn ~/lightcone-learn ~/lightcone-learn/host.pathpack` at :25 every
+  hour, after the capture rotates at :18. `Persistent=true` catches up on missed runs.
+- Each finished hour (about 170 MB) is read and deleted, so only paths stay on disk.
+- Tested: the live hour is left alone and the pack is kept.
+- It is a user timer, so it runs while Jesse is logged in. To remove it:
+  `systemctl --user disable --now lightcone-pathlearn.timer`.
